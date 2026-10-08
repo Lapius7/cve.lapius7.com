@@ -1,4 +1,4 @@
-# cve.lapius7.com
+# Vulnerability.DB (cve.lapius7.com)
 
 A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or keyword, and open any vulnerability at `/{lang}/vulns/{id}` for a detailed page that aggregates several public sources.
 

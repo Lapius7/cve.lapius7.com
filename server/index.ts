@@ -184,13 +184,13 @@ const SEV_JA: Record<string, string> = { CRITICAL: '緊急', HIGH: '重要', MED
 // jaText: Japanese description already stored (JVN or machine translation); used for /ja/ pages only.
 function metaFor(c: { id: string; severity: string | null; score: number | null; description: string }, ja: boolean, jaText?: { text?: string; title?: string } | null) {
   const sev = c.severity ? ` (${ja ? SEV_JA[c.severity] ?? c.severity : c.severity.toLowerCase()} ${c.score?.toFixed(1)})` : ''
-  const title = `${c.id}${sev} | ${ja ? jaText?.title ?? 'CVE検索' : 'CVE search'}`
+  const title = `${c.id}${sev} | ${(ja && jaText?.title) || 'Vulnerability.DB'}`
   const desc = esc((ja && jaText?.text ? jaText.text : c.description).replace(/\s+/g, ' ').slice(0, ja && jaText?.text ? 120 : 200))
   const t = esc(title), url = `${SITE}/${ja ? 'ja' : 'en'}/vulns/${c.id}`
   return `<title>${t}</title>
     <meta name="description" content="${desc}" />
     <link rel="canonical" href="${url}" />
-    <meta property="og:site_name" content="CVE search" />
+    <meta property="og:site_name" content="Vulnerability.DB" />
     <meta property="og:type" content="article" />
     <meta property="og:locale" content="${ja ? 'ja_JP' : 'en_US'}" />
     <link rel="alternate" hreflang="en" href="${SITE}/en/vulns/${c.id}" />

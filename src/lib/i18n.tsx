@@ -5,7 +5,7 @@ export type Lang = 'en' | 'ja'
 
 const dict = {
   en: {
-    title: 'CVE search',
+    title: 'Vulnerability.DB',
     lead: 'Search vulnerabilities by CVE ID or keyword. Aggregated from NVD, CISA KEV, EPSS, CVE.org, OSV, GitHub Advisories and JVN.',
     tabSearch: 'Search', tabKev: 'Known exploited', tabEpss: 'Most likely exploited',
     searchLabel: 'Search CVEs', searchPh: 'CVE-2021-44228 or a keyword such as openssl',
@@ -31,7 +31,7 @@ const dict = {
     excl: '(excl.)', to: 'to',
   },
   ja: {
-    title: 'CVE検索',
+    title: 'Vulnerability.DB',
     lead: 'CVE番号やキーワードで脆弱性を検索できます。NVD、CISA KEV、EPSS、CVE.org、OSV、GitHub Advisories、JVN の情報をまとめて表示します。',
     tabSearch: '検索', tabKev: '悪用確認済み', tabEpss: '悪用されやすい順',
     searchLabel: 'CVEを検索', searchPh: 'CVE-2021-44228 または openssl などのキーワード',
