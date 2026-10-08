@@ -1,8 +1,8 @@
 import { pool } from './db.ts'
 import type { Json } from './nvd.ts'
 
-export async function j(url: string, ms = 8000) {
-  const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { 'user-agent': 'cve.lapius7.com' } })
+export async function j(url: string, ms = 8000, headers: Record<string, string> = {}) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { 'user-agent': 'cve.lapius7.com', ...headers } })
   if (!r.ok) throw new Error(String(r.status))
   return (await r.json()) as Json
 }
@@ -48,7 +48,7 @@ export async function osv(id: string) {
 }
 
 export async function ghsa(id: string) {
-  const d = (await j(`https://api.github.com/advisories?cve_id=${id}`)) as unknown as Json[]
+  const d = (await j(`https://api.github.com/advisories?cve_id=${id}`, 8000, process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {})) as unknown as Json[]
   return d.slice(0, 5).map((a) => ({
     id: a.ghsa_id as string, url: a.html_url as string, summary: a.summary as string, severity: a.severity as string,
     published: a.published_at as string, updated: a.updated_at as string, reviewed: a.type === 'reviewed',
@@ -90,7 +90,7 @@ export async function translateJa(text: string) {
     else chunks.push(sent.slice(0, 480))
   }
   const parts = await Promise.all(chunks.map(async (c) => {
-    const r = await j(`https://api.mymemory.translated.net/get?langpair=en|ja&q=${encodeURIComponent(c)}`)
+    const r = await j(`https://api.mymemory.translated.net/get?langpair=en|ja${process.env.MYMEMORY_EMAIL ? `&de=${encodeURIComponent(process.env.MYMEMORY_EMAIL)}` : ''}&q=${encodeURIComponent(c)}`)
     const out = r.responseData?.translatedText as string | undefined
     // MyMemory reports quota/limit errors as a 200 with a warning text; never cache that.
     if (r.responseStatus !== 200 || !out || /MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID/i.test(out)) throw new Error('translate')
