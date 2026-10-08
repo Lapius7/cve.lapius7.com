@@ -1,17 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { SearchX } from 'lucide-react'
 import { SearchField } from '@/components/arc/search-field/search-field'
 import SegmentedControl from '@/components/arc/segmented-control/segmented-control'
 import { Pagination } from '@/components/arc/pagination/pagination'
-import { Badge } from '@/components/arc/badge/badge'
 import { Button } from '@/components/arc/button/button'
 import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { Skeleton } from '@/components/arc/skeleton/skeleton'
 import { ThemeSwitch, type Theme } from '@/components/arc/theme-switch/theme-switch'
-import { fmtDate, getEpssTop, getKev, searchCves, tone, type EpssItem, type Feed, type KevItem, type CveList } from '@/lib/api'
-import { Link, stripLang, usePath } from '@/lib/router'
+import { getEpssTop, getKev, searchCves, type EpssItem, type Feed, type KevItem, type CveList } from '@/lib/api'
+import { stripLang, usePath, withLang } from '@/lib/router'
 import { useLang, type Lang } from '@/lib/i18n'
 import Detail from '@/Detail'
+import DataTable from '@/components/data-table'
+import { cveColumns, epssColumns, kevColumns } from '@/columns'
 
 function useDebounced<T>(v: T, ms: number) {
   const [d, setD] = useState(v)
@@ -45,16 +46,6 @@ export function LangSwitch() {
 
 type Tab = 'search' | 'kev' | 'epss'
 
-function Row({ id, date, badges, desc, right }: { id: string; date?: string; badges?: ReactNode; desc?: string; right?: ReactNode }) {
-  return (
-    <Link className="row" href={`/vulns/${id}`}>
-      <span className="id">{id}</span>
-      <span className="score" style={{ gridColumn: 3, gridRow: 1 }}>{badges}{right}</span>
-      <span className="date" style={{ gridColumn: 2, gridRow: 1 }}>{date}</span>
-      <span className="desc">{desc}</span>
-    </Link>
-  )
-}
 
 function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme) => void }) {
   const { t } = useLang()
@@ -70,6 +61,7 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
   const [loading, setLoading] = useState(true)
   const [nonce, setNonce] = useState(0)
   const dq = useDebounced(q.trim(), 600)
+  const narrow = matchMedia('(max-width: 40rem)').matches
 
   useEffect(() => {
     const p = new URLSearchParams()
@@ -97,7 +89,6 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
     { value: '', label: t('all') }, { value: 'CRITICAL', label: t('critical') }, { value: 'HIGH', label: t('high') },
     { value: 'MEDIUM', label: t('medium') }, { value: 'LOW', label: t('low') },
   ]
-  const sevLabel = (s: string) => t(s.toLowerCase() as 'critical')
 
   return (
     <main className="page">
@@ -135,18 +126,9 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
         <EmptyState icon={<SearchX size={20} />} title={t('noneTitle')} description={t('none')} />
       ) : (
         <div className="list" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }}>
-          {tab === 'search' && data?.items.map((c) => (
-            <Row key={c.id} id={c.id} date={fmtDate(c.published)} desc={c.description}
-              badges={<>{c.kev && <Badge tone="danger" size="sm">{t('exploited')}</Badge>}{c.severity && <Badge tone={tone(c.severity)} size="sm">{sevLabel(c.severity)}</Badge>}</>}
-              right={<span>{c.score?.toFixed(1) ?? '–'}</span>} />
-          ))}
-          {tab === 'kev' && kev?.items.map((c) => (
-            <Row key={c.id} id={c.id} date={c.added} desc={`${c.vendor} ${c.product}: ${c.name}. ${c.description}`}
-              badges={c.ransomware ? <Badge tone="warning" size="sm">{t('ransomware')}</Badge> : null} />
-          ))}
-          {tab === 'epss' && top?.items.map((c) => (
-            <Row key={c.id} id={c.id} desc={`${t('prob')}: ${(c.score * 100).toFixed(2)}%`} right={<span>{(c.score * 100).toFixed(1)}%</span>} />
-          ))}
+          {tab === 'search' && data && <DataTable key="s" data={data.items} columns={cveColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { description: false, epss: false } : {}} />}
+          {tab === 'kev' && kev && <DataTable key="k" data={kev.items} columns={kevColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { description: false, due: false, vendor: false } : {}} />}
+          {tab === 'epss' && top && <DataTable key="e" data={top.items} columns={epssColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} />}
         </div>
       )}
 

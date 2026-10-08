@@ -34,8 +34,25 @@ export interface CveRow {
   vector: string | null
   cvssVersion: string | null
   cwes: string[]
+  products: { vendor: string; product: string }[]
   references: { url: string; source: string; tags: string[] }[]
   kev: boolean
+}
+
+// vendor/product pairs from vulnerable CPE matches (applications, OS, hardware), deduped, capped.
+function productsOf(c: Json) {
+  const seen = new Map<string, { vendor: string; product: string }>()
+  const walk = (n: Json) => {
+    for (const m of (n.cpeMatch ?? []) as Json[]) {
+      if (m.vulnerable === false) continue
+      const [, , part, vendor, product] = String(m.criteria).split(':')
+      if (!vendor || !product || vendor === '*' || product === '*' || !'aoh'.includes(part)) continue
+      seen.set(`${vendor}:${product}`, { vendor, product })
+    }
+    for (const ch of (n.children ?? []) as Json[]) walk(ch)
+  }
+  for (const cfg of (c.configurations ?? []) as Json[]) for (const n of (cfg.nodes ?? []) as Json[]) walk(n)
+  return [...seen.values()].slice(0, 8)
 }
 
 export function normalize(c: Json): CveRow {
@@ -55,6 +72,7 @@ export function normalize(c: Json): CveRow {
     vector: d?.vectorString ?? null,
     cvssVersion: d?.version ?? null,
     cwes: [...new Set(((c.weaknesses ?? []) as Json[]).flatMap((w) => w.description.map((x: Json) => x.value as string)))],
+    products: productsOf(c),
     references: ((c.references ?? []) as Json[]).map((r) => ({ url: r.url, source: r.source, tags: r.tags ?? [] })),
     kev: Boolean(c.cisaExploitAdd),
   }

@@ -9,6 +9,8 @@ export interface Cve {
   vector: string | null
   cvssVersion: string | null
   cwes: string[]
+  products: { vendor: string; product: string }[]
+  epss?: number | null
   references: { url: string; source: string; tags: string[] }[]
   kev: boolean
 }
