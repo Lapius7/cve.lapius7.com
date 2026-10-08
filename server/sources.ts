@@ -91,8 +91,10 @@ export async function translateJa(text: string) {
   }
   const parts = await Promise.all(chunks.map(async (c) => {
     const r = await j(`https://api.mymemory.translated.net/get?langpair=en|ja&q=${encodeURIComponent(c)}`)
-    if (r.responseStatus !== 200) throw new Error('translate')
-    return r.responseData.translatedText as string
+    const out = r.responseData?.translatedText as string | undefined
+    // MyMemory reports quota/limit errors as a 200 with a warning text; never cache that.
+    if (r.responseStatus !== 200 || !out || /MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID/i.test(out)) throw new Error('translate')
+    return out
   }))
   return parts.join('')
 }
