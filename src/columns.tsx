@@ -8,9 +8,9 @@ type T = (k: any, v?: Record<string, string>) => string
 const idCell = (id: string) => <Link className="dt-id" href={`/vulns/${id}`} onClick={(e) => e.stopPropagation()}>{id}</Link>
 const pct = (v: number | null | undefined) => (v == null ? '–' : `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%`)
 
-function packages(c: Cve, t: T) {
+function packages(c: Cve) {
   const list = c.products ?? []
-  if (!list.length) return <span className="tags">{t('noPackage')}</span>
+  if (!list.length) return <span className="tags">–</span>
   return (
     <span className="dt-pk">
       {list.slice(0, 2).map((p) => <code key={p.vendor + p.product} title={`${p.vendor} / ${p.product}`}>{p.product}</code>)}
@@ -23,8 +23,8 @@ const sevRank = (s: string | null) => ({ CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1
 
 export const cveColumns = (t: T): ColumnDef<Cve, any>[] => [
   { id: 'id', accessorKey: 'id', header: t('colId'), enableHiding: false,
-    cell: ({ row }) => <span className="dt-idwrap">{idCell(row.original.id)}{row.original.kev && <Badge tone="danger" size="sm">{t('exploited')}</Badge>}</span> },
-  { id: 'package', header: t('colPackage'), accessorFn: (c) => c.products?.[0]?.product ?? '', cell: ({ row }) => packages(row.original, t) },
+    cell: ({ row }) => <><span className="dt-idwrap">{idCell(row.original.id)}{row.original.kev && <Badge tone="danger" size="sm">{t('exploited')}</Badge>}</span><span className="dt-sub">{packages(row.original)}</span></> },
+  { id: 'package', header: t('colPackage'), accessorFn: (c) => c.products?.[0]?.product ?? '', cell: ({ row }) => packages(row.original) },
   { id: 'severity', header: t('colSeverity'), accessorFn: (c) => sevRank(c.severity), sortDescFirst: true,
     cell: ({ row }) => row.original.severity ? <Badge tone={tone(row.original.severity)} size="sm">{t(row.original.severity.toLowerCase())}</Badge> : <span className="tags">–</span> },
   { id: 'score', header: t('colScore'), accessorFn: (c) => c.score ?? -1, sortDescFirst: true, meta: { align: 'right' },
@@ -37,7 +37,8 @@ export const cveColumns = (t: T): ColumnDef<Cve, any>[] => [
 ]
 
 export const kevColumns = (t: T): ColumnDef<KevItem, any>[] => [
-  { id: 'id', accessorKey: 'id', header: t('colId'), enableHiding: false, cell: ({ row }) => idCell(row.original.id) },
+  { id: 'id', accessorKey: 'id', header: t('colId'), enableHiding: false,
+    cell: ({ row }) => <span className="dt-idwrap">{idCell(row.original.id)}{row.original.ransomware && <Badge tone="warning" size="sm">{t('ransomware')}</Badge>}</span> },
   { id: 'vendor', accessorKey: 'vendor', header: t('colVendor') },
   { id: 'product', accessorKey: 'product', header: t('colProduct'), cell: ({ row }) => <code>{row.original.product}</code> },
   { id: 'ransomware', header: t('ransomware'), accessorFn: (c) => Number(c.ransomware), sortDescFirst: true,

@@ -98,7 +98,7 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
       </div>
       <p className="lead">{t('lead')}</p>
 
-      <div style={{ marginBottom: '1rem' }}>
+      <div className="tabs" style={{ marginBottom: '1rem' }}>
         <SegmentedControl label="View" value={tab} onValueChange={(v) => { setTab(v as Tab); setPage(1) }}
           options={[{ value: 'search', label: t('tabSearch') }, { value: 'kev', label: t('tabKev') }, { value: 'epss', label: t('tabEpss') }]} />
       </div>
@@ -126,8 +126,8 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
         <EmptyState icon={<SearchX size={20} />} title={t('noneTitle')} description={t('none')} />
       ) : (
         <div className="list" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }}>
-          {tab === 'search' && data && <DataTable key="s" data={data.items} columns={cveColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { description: false, epss: false } : {}} />}
-          {tab === 'kev' && kev && <DataTable key="k" data={kev.items} columns={kevColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { description: false, due: false, vendor: false } : {}} />}
+          {tab === 'search' && data && <DataTable key="s" data={data.items} columns={cveColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { package: false, description: false, epss: false, published: false } : {}} />}
+          {tab === 'kev' && kev && <DataTable key="k" data={kev.items} columns={kevColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} initialVisibility={narrow ? { description: false, due: false, vendor: false, added: false, ransomware: false } : { ransomware: false, due: false }} />}
           {tab === 'epss' && top && <DataTable key="e" data={top.items} columns={epssColumns(t)} columnsLabel={t('columns')} rowHref={(c) => withLang(`/vulns/${c.id}`)} />}
         </div>
       )}
