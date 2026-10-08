@@ -76,12 +76,12 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
     const ac = new AbortController()
     setLoading(true)
     setError(null)
-    const fail = (e: Error) => { if (e.name !== 'AbortError') { setError(e.message === 'rate_limited' ? t('rate') : t('loadFail')); setLoading(false) } }
+    const fail = (e: Error) => { if (e.name !== 'AbortError') { setError(e.message === 'rate_limited' ? 'rate' : 'loadFail'); setLoading(false) } }
     if (tab === 'search') searchCves(dq, severity, page, ac.signal).then((d) => { setData(d); setLoading(false) }).catch(fail)
     else if (tab === 'kev') getKev(page, ac.signal).then((d) => { setKev(d); setLoading(false) }).catch(fail)
     else getEpssTop(page, ac.signal).then((d) => { setTop(d); setLoading(false) }).catch(fail)
     return () => ac.abort()
-  }, [tab, dq, severity, page, nonce, t])
+  }, [tab, dq, severity, page, nonce])
 
   const feed = tab === 'search' ? data : tab === 'kev' ? kev : top
   const pageCount = feed ? Math.ceil(feed.total / feed.perPage) : 0
@@ -119,7 +119,7 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
       </div>
 
       {error ? (
-        <EmptyState title={t('errorTitle')} description={error} action={<Button onClick={() => setNonce((n) => n + 1)}>{t('retry')}</Button>} />
+        <EmptyState title={t('errorTitle')} description={t(error as 'rate')} action={<Button onClick={() => setNonce((n) => n + 1)}>{t('retry')}</Button>} />
       ) : loading && !feed ? (
         <Skeleton label={t('searching')} lines={6} />
       ) : feed && feed.items.length === 0 ? (

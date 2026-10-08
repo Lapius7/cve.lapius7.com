@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/arc/badge/badge'
 import { Button } from '@/components/arc/button/button'
@@ -25,17 +25,23 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   const [xLoaded, setXLoaded] = useState(false)
   const [tr, setTr] = useState<string | null>(null)
   const [trFailed, setTrFailed] = useState(false)
+  const langRef = useRef(lang)
+  langRef.current = lang
+  const loadedLang = useRef(lang)
   const [showEn, setShowEn] = useState(false)
   const [cwe, setCwe] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const ac = new AbortController()
     setCve(null); setErr(null); setX(null); setXLoaded(false); setTr(null); setTrFailed(false)
-    document.title = `${id} | ${t('title')}`
+    loadedLang.current = langRef.current
     getExtra(id, ac.signal).then(setX).catch(() => {}).finally(() => setXLoaded(true))
     getCve(id, ac.signal).then(setCve).catch((e) => e.name !== 'AbortError' && setErr(e.message))
     return () => ac.abort()
-  }, [id, t])
+  }, [id])
+
+  // Switching language only swaps text: no refetch, no skeleton.
+  useEffect(() => { document.title = `${id} | ${t('title')}` }, [id, t])
 
   useEffect(() => {
     setCwe({})
@@ -74,7 +80,7 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   const jvn = x?.jvn
   const jaText = lang === 'ja' && !showEn ? (jvn?.overview ?? tr) : null
   // Japanese view: never flash the English original while the Japanese text is still on its way.
-  const jaPending = lang === 'ja' && !showEn && !jaText && !trFailed && (!xLoaded || needTr)
+  const jaPending = lang === 'ja' && loadedLang.current === 'ja' && !showEn && !jaText && !trFailed && (!xLoaded || needTr)
   const origin = location.origin
   const shortUrl = `${origin}${withLang(`/${shortId(cve.id)}`)}`
   const links = [
