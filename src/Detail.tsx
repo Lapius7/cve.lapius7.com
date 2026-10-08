@@ -24,12 +24,13 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   const [x, setX] = useState<Extra | null>(null)
   const [xLoaded, setXLoaded] = useState(false)
   const [tr, setTr] = useState<string | null>(null)
+  const [trFailed, setTrFailed] = useState(false)
   const [showEn, setShowEn] = useState(false)
   const [cwe, setCwe] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const ac = new AbortController()
-    setCve(null); setErr(null); setX(null); setXLoaded(false); setTr(null)
+    setCve(null); setErr(null); setX(null); setXLoaded(false); setTr(null); setTrFailed(false)
     document.title = `${id} | ${t('title')}`
     getExtra(id, ac.signal).then(setX).catch(() => {}).finally(() => setXLoaded(true))
     getCve(id, ac.signal).then(setCve).catch((e) => e.name !== 'AbortError' && setErr(e.message))
@@ -46,7 +47,7 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   useEffect(() => {
     if (!needTr) return
     const ac = new AbortController()
-    getTranslation(id, ac.signal).then((r) => setTr(r.text)).catch(() => {})
+    getTranslation(id, ac.signal).then((r) => setTr(r.text)).catch((e) => e.name !== 'AbortError' && setTrFailed(true))
     return () => ac.abort()
   }, [needTr, id])
 
@@ -72,6 +73,8 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   const sev = (s: string) => t(s.toLowerCase() as 'critical')
   const jvn = x?.jvn
   const jaText = lang === 'ja' && !showEn ? (jvn?.overview ?? tr) : null
+  // Japanese view: never flash the English original while the Japanese text is still on its way.
+  const jaPending = lang === 'ja' && !showEn && !jaText && !trFailed && (!xLoaded || needTr)
   const origin = location.origin
   const links = [
     { label: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cve.id}` },
@@ -127,7 +130,7 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
         <div className="dmain detail">
           <section className="card">
             <h3>{t('description')}</h3>
-            {<p>{jaText ?? cve.description}</p>}
+            {jaPending ? <p className="tags">{t('translating')}</p> : <p>{jaText ?? cve.description}</p>}
             {jaText && <p className="tags">{jvn?.overview ? t('jvnSource') : t('machine')}{' '}<button className="lnk" onClick={() => setShowEn(true)}>{t('showOriginal')}</button></p>}
             {showEn && <button className="lnk" onClick={() => setShowEn(false)}>日本語</button>}
           </section>
