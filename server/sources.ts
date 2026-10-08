@@ -126,3 +126,16 @@ export function cached<T>(key: string, source: string, ttl: number, fn: () => Pr
   inflight.set(k, run)
   return run
 }
+
+/** Japanese text we already have for a CVE (JVN iPedia first, then stored machine translation). Reads the DB only, never calls an API. */
+export async function storedJa(id: string): Promise<{ text?: string; title?: string } | null> {
+  const [rows] = await pool.query<any[]>("SELECT source, data FROM cve_extra WHERE cve_id=? AND source IN ('jvn','tr_ja')", [id])
+  let jvnV: any, trV: any
+  for (const r of rows) {
+    const v = (typeof r.data === 'string' ? JSON.parse(r.data) : r.data)?.v
+    if (r.source === 'jvn') jvnV = v
+    else trV = v
+  }
+  const text = (jvnV?.overview as string | undefined) || (typeof trV === 'string' && trV ? trV : undefined)
+  return text ? { text, title: (jvnV?.title as string | undefined) || undefined } : null
+}

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { getState, migrate, pool, rowToCve, upsertCves } from './db.ts'
 import { normalize, nvdRaw, type Json } from './nvd.ts'
-import { cached, cveOrg, cweName, epssSeries, ghsa, jvn, osv, translateJa } from './sources.ts'
+import { cached, cveOrg, cweName, epssSeries, ghsa, jvn, osv, storedJa, translateJa } from './sources.ts'
 import { startScheduler } from './sync.ts'
 
 const PORT = Number(process.env.PORT ?? 3100)
@@ -179,9 +179,13 @@ const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist
 const SITE = process.env.SITE_URL ?? 'https://cve.lapius7.com'
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-function metaFor(c: { id: string; severity: string | null; score: number | null; description: string }, ja: boolean) {
-  const title = `${c.id}${c.severity ? ` (${c.severity.toLowerCase()} ${c.score?.toFixed(1)})` : ''} | CVE search`
-  const desc = esc(c.description.replace(/\s+/g, ' ').slice(0, 200))
+const SEV_JA: Record<string, string> = { CRITICAL: '緊急', HIGH: '重要', MEDIUM: '警告', LOW: '注意' }
+
+// jaText: Japanese description already stored (JVN or machine translation); used for /ja/ pages only.
+function metaFor(c: { id: string; severity: string | null; score: number | null; description: string }, ja: boolean, jaText?: { text?: string; title?: string } | null) {
+  const sev = c.severity ? ` (${ja ? SEV_JA[c.severity] ?? c.severity : c.severity.toLowerCase()} ${c.score?.toFixed(1)})` : ''
+  const title = `${c.id}${sev} | ${ja ? jaText?.title ?? 'CVE検索' : 'CVE search'}`
+  const desc = esc((ja && jaText?.text ? jaText.text : c.description).replace(/\s+/g, ' ').slice(0, ja && jaText?.text ? 120 : 200))
   const t = esc(title), url = `${SITE}/${ja ? 'ja' : 'en'}/vulns/${c.id}`
   return `<title>${t}</title>
     <meta name="description" content="${desc}" />
@@ -223,7 +227,11 @@ app.get(/^\/(?!api\/).*/, async (req, res) => {
   if (m) {
     try {
       const c = await getCve(m[1].toUpperCase())
-      if (c) html = html.replace(/<title>[\s\S]*?<\/title>[\s\S]*?<!--\/meta-->/, metaFor(c, /^\/ja(\/|$)/.test(req.path)) + '\n    <!--/meta-->')
+      if (c) {
+        const isJa = /^\/ja(\/|$)/.test(req.path)
+        const jaText = isJa ? await storedJa(c.id).catch(() => null) : null
+        html = html.replace(/<title>[\s\S]*?<\/title>[\s\S]*?<!--\/meta-->/, metaFor(c, isJa, jaText) + '\n    <!--/meta-->')
+      }
     } catch {}
   }
   res.type('html').send(html)
