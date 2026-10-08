@@ -130,7 +130,7 @@ app.get('/api/cves/:id/extra', wrap(async (req, res) => {
     cached(id, 'jvn', TTL(pub, DAY), () => jvn(id)),
   ])
   const k = kr[0]
-  const epss = er[0] ? { score: Number(er[0].score), percentile: Number(er[0].percentile), date: (series as any)?.date ?? '', series: (series as any)?.series ?? [] } : (series ?? null)
+  const epss = er[0] ? { score: Number(er[0].score), percentile: Number(er[0].percentile), date: series.at(-1)?.date ?? '', series } : null
   res.set('Cache-Control', 'public, max-age=300').json({
     epss,
     kev: k ? { vendor: k.vendor, product: k.product, name: k.name, description: k.description, action: k.action, added: k.added, due: k.due, ransomware: k.ransomware === 'Known' || k.ransomware === 1 } : null,
@@ -141,7 +141,7 @@ app.get('/api/cves/:id/extra', wrap(async (req, res) => {
 app.get('/api/cwe/:id', wrap(async (req, res) => {
   const id = req.params.id.replace(/\D/g, '')
   if (!id) return res.status(400).json({ error: 'invalid_id' })
-  res.set('Cache-Control', 'public, max-age=86400').json({ name: await cached(`CWE-${id}`, 'cwe', 365 * DAY, () => cweName(id)) })
+  res.set('Cache-Control', 'public, max-age=86400').json({ name: (await cached(`CWE-${id}`, 'cwe', 365 * DAY, () => cweName(id)))?.name ?? null })
 }))
 
 // ---- Home feeds ----
