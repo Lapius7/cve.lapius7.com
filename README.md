@@ -1,5 +1,7 @@
 # Vulnerability.DB (cve.lapius7.com)
 
+**English** | [日本語](README.ja.md) · Live: <https://cve.lapius7.com>
+
 A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or keyword, and open any vulnerability at `/{lang}/vulns/{id}` for a detailed page that aggregates several public sources.
 
 ## Features
@@ -9,7 +11,9 @@ A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or 
 - Japanese support: descriptions from JVN iPedia, with machine translation as a fallback
 - Language in the URL (`/en/...`, `/ja/...`), `Accept-Language` redirect, hreflang
 - Light / dark theme that survives reload
-- Per-page OGP tags rendered on the server
+- Per-page OGP tags rendered on the server (Japanese text on `/ja/` pages when available)
+- Sortable list table with a column menu, showing affected packages (vendor/product from NVD CPE data)
+- Short URLs: `/{lang}/2026102322` redirects to `/{lang}/vulns/CVE-2026-102322`; each detail page has a copy field for it
 - All CVEs cached in MySQL (full sync, then incremental sync), with a live NVD fallback until the first sync finishes
 
 ## Data sources
@@ -30,7 +34,7 @@ Data belongs to the respective providers. Check each provider's terms before red
 
 ## Stack
 
-Vite, React, TypeScript, Tailwind CSS v4, [shadcn/ui](https://ui.shadcn.com/), [Arc](https://uiarc.dev/), Express, MySQL 8.
+Vite, React, TypeScript, Tailwind CSS v4, [shadcn/ui](https://ui.shadcn.com/), [TanStack Table](https://tanstack.com/table), [Arc](https://uiarc.dev/), Express, MySQL 8.
 
 ## Getting started
 
@@ -57,6 +61,8 @@ Tables are created automatically on startup. Until `sync:full` finishes, search 
 | `NVD_API_KEY` | Optional. [Free key](https://nvd.nist.gov/developers/request-an-api-key) raises the rate limit from 5 to 50 requests per 30 s |
 | `MYSQL_HOST` `MYSQL_PORT` `MYSQL_USER` `MYSQL_PASSWORD` `MYSQL_DATABASE` | MySQL connection |
 | `SYNC` | Set to `0` to disable the in-process sync scheduler |
+| `MYMEMORY_EMAIL` | Optional. Sent as MyMemory's `de` parameter; raises the free translation quota from 5k to 50k characters per day |
+| `GITHUB_TOKEN` | Optional. Token without scopes; raises the GitHub Advisories limit from 60 to 5,000 requests per hour |
 
 ## Sync
 
