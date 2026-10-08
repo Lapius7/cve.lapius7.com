@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#171717"/>
+  <rect x="80" y="80" width="96" height="96" rx="24" fill="#fafafa"/>
+  <g transform="translate(80 80) scale(3)">
+    <path d="M16 6.5 23.5 9.5v6c0 4.6-3.1 8.2-7.5 10-4.4-1.8-7.5-5.4-7.5-10v-6z" fill="none" stroke="#171717" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M16 12v5" fill="none" stroke="#171717" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="16" cy="20.5" r="1.2" fill="#ef4444"/>
+  </g>
+  <text x="80" y="340" font-family="Inter, Helvetica, Arial, sans-serif" font-size="96" font-weight="500" fill="#fafafa">CVE search</text>
+  <text x="80" y="410" font-family="Inter, Helvetica, Arial, sans-serif" font-size="38" fill="#a3a3a3">Search vulnerabilities by CVE ID or keyword.</text>
+  <text x="80" y="470" font-family="Inter, Helvetica, Arial, sans-serif" font-size="38" fill="#a3a3a3">CVSS, EPSS, CISA KEV, affected packages and references.</text>
+  <text x="80" y="560" font-family="Inter, Helvetica, Arial, sans-serif" font-size="30" fill="#737373">cve.lapius7.com</text>
+</svg>

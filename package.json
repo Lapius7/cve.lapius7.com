@@ -1,0 +1,46 @@
+{
+  "name": "cve.lapius7.com",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "server": "tsx --env-file-if-exists=.env server/index.ts",
+    "start": "tsx --env-file-if-exists=.env server/index.ts",
+    "sync:full": "tsx --env-file-if-exists=.env server/sync.ts full",
+    "sync:inc": "tsx --env-file-if-exists=.env server/sync.ts inc",
+    "sync:daily": "tsx --env-file-if-exists=.env server/sync.ts daily"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@radix-ui/react-dialog": "^1.2.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.4.0",
+    "express": "^5.2.1",
+    "lucide-react": "^1.53.0",
+    "motion": "^14.0.0",
+    "mysql2": "^3.24.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "shadcn": "^4.21.4",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

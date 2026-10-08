@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .bg{fill:#171717}.fg{stroke:#fafafa}
+    @media (prefers-color-scheme:dark){.bg{fill:#fafafa}.fg{stroke:#171717}}
+  </style>
+  <rect class="bg" width="32" height="32" rx="8"/>
+  <path class="fg" d="M16 6.5 23.5 9.5v6c0 4.6-3.1 8.2-7.5 10-4.4-1.8-7.5-5.4-7.5-10v-6z" fill="none" stroke-width="2" stroke-linejoin="round"/>
+  <path class="fg" d="M16 12v5" fill="none" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="16" cy="20.5" r="1.2" fill="#ef4444"/>
+</svg>
