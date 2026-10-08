@@ -115,7 +115,7 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
       )}
 
       <div className="meta" aria-live="polite">
-        {error ? '' : loading ? t('searching') : feed && t(tab === 'search' && !dq ? 'recent' : 'results', { n: feed.total.toLocaleString() })}
+        {error ? '' : loading ? t('searching') : feed && t(tab === 'search' && !dq && data?.live ? 'recent' : 'results', { n: feed.total.toLocaleString() })}
       </div>
 
       {error ? (

@@ -19,6 +19,7 @@ export interface CveList {
   page: number
   perPage: number
   items: Cve[]
+  live?: boolean
 }
 
 export interface Extra {
