@@ -27,7 +27,7 @@ const dict = {
     ghsa: 'GitHub Security Advisories', patched: 'fixed in {v}', noPatch: 'no fix listed',
     osv: 'Affected packages (OSV)', alias: 'also known as {a}',
     sevScore: 'Severity', outOf: 'out of 10', cvssMetrics: 'CVSS base metrics', vec: 'Vector', epssTitle: 'EPSS score', pctl: '{p}th percentile', timeline: 'Timeline', tlPub: 'Published to the NVD', tlKev: 'Added to CISA KEV', tlMod: 'Last modified', tlDue: 'KEV remediation due', pkgs: 'Package', affVer: 'Affected versions', fixVer: 'Patched versions', noInfo: 'Not available', idLabel: 'CVE ID', sources: 'Sources', crumb: 'Vulnerabilities', published: 'Published', updated: 'Updated',
-    detailPages: 'Detail pages', refs: 'References ({n})', copyId: 'Copy ID', copyLink: 'Copy link', json: 'View JSON',
+    detailPages: 'Detail pages', refs: 'References ({n})', copyId: 'Copy ID', copyLink: 'Copy link', shortUrl: 'Short URL', json: 'View JSON',
     excl: '(excl.)', to: 'to',
   },
   ja: {
@@ -53,7 +53,7 @@ const dict = {
     ghsa: 'GitHub セキュリティアドバイザリ', patched: '{v} で修正', noPatch: '修正版の記載なし',
     osv: '影響を受けるパッケージ (OSV)', alias: '別名 {a}',
     sevScore: '深刻度', outOf: '/ 10', cvssMetrics: 'CVSS 基本評価基準', vec: 'ベクター', epssTitle: 'EPSS スコア', pctl: '上位 {p}% 目', timeline: 'タイムライン', tlPub: 'NVD に公開', tlKev: 'CISA KEV に追加', tlMod: '最終更新', tlDue: 'KEV 対応期限', pkgs: 'パッケージ', affVer: '影響を受けるバージョン', fixVer: '修正済みバージョン', noInfo: '情報なし', idLabel: 'CVE ID', sources: '情報源', crumb: '脆弱性', published: '公開', updated: '更新',
-    detailPages: '詳細ページ', refs: '参考リンク ({n})', copyId: 'IDをコピー', copyLink: 'リンクをコピー', json: 'JSONを表示',
+    detailPages: '詳細ページ', refs: '参考リンク ({n})', copyId: 'IDをコピー', copyLink: 'リンクをコピー', shortUrl: '短縮URL', json: 'JSONを表示',
     excl: '(未満)', to: '〜',
   },
 } as const

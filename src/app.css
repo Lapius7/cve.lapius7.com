@@ -162,3 +162,9 @@ html { -webkit-text-size-adjust: 100%; }
 .card { overflow-wrap: anywhere; }
 .card pre, .detail pre { white-space: pre-wrap; overflow-x: auto; max-width: 100%; }
 .detail .card ul, .detail .card li { min-width: 0; }
+
+/* --- short URL field --- */
+.urlbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.urlbar label { font-size: .75rem; color: var(--text-secondary); }
+.urlbar input { flex: 1 1 14rem; min-width: 0; font: inherit; font-size: .8125rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--foreground); background: var(--surface-muted); border: 1px solid var(--border); border-radius: 8px; padding: .4375rem .625rem; }
+.urlbar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

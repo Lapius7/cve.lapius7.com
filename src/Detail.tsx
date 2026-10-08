@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { Skeleton } from '@/components/arc/skeleton/skeleton'
 import Sparkline from '@/components/arc/sparkline/sparkline'
 import { ThemeSwitch, type Theme } from '@/components/arc/theme-switch/theme-switch'
-import { fmtDate, getCve, getExtra, getTranslation, tone, type Cve, type Extra } from '@/lib/api'
+import { fmtDate, getCve, getExtra, getTranslation, shortId, tone, type Cve, type Extra } from '@/lib/api'
 import { Link, withLang } from '@/lib/router'
 import { useLang } from '@/lib/i18n'
 import { LangSwitch } from '@/App'
@@ -76,6 +76,7 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   // Japanese view: never flash the English original while the Japanese text is still on its way.
   const jaPending = lang === 'ja' && !showEn && !jaText && !trFailed && (!xLoaded || needTr)
   const origin = location.origin
+  const shortUrl = `${origin}${withLang(`/${shortId(cve.id)}`)}`
   const links = [
     { label: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cve.id}` },
     { label: 'CVE.org', url: `https://www.cve.org/CVERecord?id=${cve.id}` },
@@ -114,7 +115,11 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
         </div>
         <div className="actions">
           <CopyButton value={cve.id} label={t('copyId')} />
-          <CopyButton value={`${origin}${withLang(`/vulns/${cve.id}`)}`} label={t('copyLink')} />
+        </div>
+        <div className="urlbar">
+          <label htmlFor="short-url">{t('shortUrl')}</label>
+          <input id="short-url" readOnly value={shortUrl} onFocus={(e) => e.currentTarget.select()} />
+          <CopyButton value={shortUrl} label={t('copyLink')} />
         </div>
       </header>
 

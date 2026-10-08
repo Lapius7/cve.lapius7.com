@@ -59,3 +59,6 @@ export const getCve = (id: string, signal?: AbortSignal) => get<Cve>(`/api/cves/
 export const tone = (s: string | null) =>
   s === 'CRITICAL' || s === 'HIGH' ? 'danger' : s === 'MEDIUM' ? 'warning' : s === 'LOW' ? 'info' : 'neutral'
 export const fmtDate = (s: string) => s.slice(0, 10)
+
+/** CVE-2026-102322 -> 2026102322 (the server redirects /{lang}/2026102322 back to the full page). */
+export const shortId = (id: string) => id.replace(/^CVE-(\d{4})-(\d+)$/i, '$1$2')

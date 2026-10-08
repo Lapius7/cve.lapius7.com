@@ -205,6 +205,12 @@ function metaFor(c: { id: string; severity: string | null; score: number | null;
 
 app.use(express.static(dist, { index: false }))
 app.get(/^\/(?!api\/).*/, async (req, res) => {
+  // Short URL: /2026102322 or /ja/2026102322 -> /ja/vulns/CVE-2026-102322 (4-digit year + 4+ digit sequence).
+  const sm = req.path.match(/^\/(?:(ja|en)\/)?(\d{4})(\d{4,})\/?$/)
+  if (sm) {
+    const lang = sm[1] ?? ((req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en')
+    return res.redirect(301, `/${lang}/vulns/CVE-${sm[2]}-${sm[3]}`)
+  }
   if (!/^\/(ja|en)(\/|$)/.test(req.path)) {
     const lang = (req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en'
     const q = req.url.slice(req.path.length)
