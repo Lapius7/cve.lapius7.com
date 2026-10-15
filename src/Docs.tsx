@@ -43,6 +43,8 @@ export default function DocsPage({ theme, onThemeChange }: { theme: Theme; onThe
     ['GET /api/cves', x.d.cves], ['GET /api/cves/{id}', x.d.cve], ['GET /api/cves/{id}/related', x.d.rel],
     ['GET /api/pkg/{ecosystem}/{name}', x.d.pkg], ['POST /api/scan', x.d.scan], ['GET /api/vendors/{vendor}[/{product}]', x.d.ven],
     ['GET /api/cwe/{id}/cves', x.d.cwe], ['GET /api/stats', x.d.st], ['GET /api/products', x.d.pr],
+    ['GET /api/advisories', lang === 'ja' ? '保存済みのアドバイザリを検索' : 'Search stored advisories'],
+    ['GET /api/trending', lang === 'ja' ? 'よく見られた項目と検索語（集計のみ）' : 'Most viewed items and searches (aggregates only)'],
   ]
   return (
     <Shell title={x.title} crumb={x.lead} theme={theme} onThemeChange={onThemeChange}>

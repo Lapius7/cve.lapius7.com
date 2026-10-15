@@ -100,7 +100,9 @@ npm start                   # dist/ と /api を 127.0.0.1:3100 で配信
 | `GET /api/products?q=` | 製品の候補 |
 | `GET /api/vendors/:vendor[/:product]` | ベンダー・製品の CVE |
 | `GET /api/cwe/:n/cves?page=` | CWE ごとの CVE |
-| `GET /api/stats` | 総数、深刻度、月別件数、上位の CWE・ベンダー |
+| `GET /api/stats` | 総数、深刻度、月別件数、上位の CWE・ベンダー、直近90日の日次推移 |
+| `GET /api/advisories` | 保存済みの GHSA/OSV アドバイザリを検索（`q`、`package`、`page`） |
+| `GET /api/trending` | よく見られた項目・検索語・パッケージ（集計値のみで IP は保存しません） |
 | `GET /badge/:id.svg`, `/badge/pkg/:ecosystem/*name.svg` | SVG バッジ |
 | `GET /embed/:id?theme=dark` | 埋め込みカード |
 | `GET /api/openapi.json` | OpenAPI 仕様 |

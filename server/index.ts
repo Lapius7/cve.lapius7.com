@@ -8,6 +8,7 @@ import { ADV_RE, advisory, translateAdvisory, cached, cveOrg, cweName, epssSerie
 import { startScheduler } from './sync.ts'
 import { extraRoutes } from './extra.ts'
 import { renderOg } from './og.ts'
+import { cachedAdvisory, hit, migrateStore, storeRoutes } from './store.ts'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const PER_PAGE = 20
@@ -19,6 +20,7 @@ const DAY = 86400_000
 const app = express()
 app.disable('x-powered-by')
 await migrate()
+await migrateStore()
 
 const goneFn = (res: express.Response) => { let g = false; res.on('close', () => { if (!res.writableEnded) g = true }); return () => g }
 const wrap = (fn: (req: express.Request, res: express.Response) => Promise<unknown>): express.RequestHandler =>
@@ -68,6 +70,7 @@ app.get('/api/cves', wrap(async (req, res) => {
   const year = String(req.query.year ?? '')
   const sort = String(req.query.sort ?? '')
   const kevOnly = req.query.kev === '1'
+  if (q.length >= 2 && page === 1 && !CVE_RE.test(q)) hit('search', q)
 
   if (!(await ready())) return res.json(await nvdSearch(q, sev, page, year, goneFn(res)))
 
@@ -113,6 +116,7 @@ app.get('/api/cves/:id', wrap(async (req, res) => {
   if (!CVE_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_id' })
   const c = await getCve(req.params.id.toUpperCase(), goneFn(res))
   if (!c) return res.status(404).json({ error: 'not_found' })
+  hit('view', c.id)
   res.json(c)
 }))
 
@@ -145,8 +149,9 @@ app.get('/api/advisories/:id', wrap(async (req, res) => {
   if (!ADV_RE.test(req.params.id) || req.params.id.length > 24) return res.status(400).json({ error: 'invalid_id' })
   const id = normAdvId(req.params.id)
   const repo = typeof req.query.repo === 'string' ? req.query.repo : undefined
-  const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id, repo))
+  const a = await cachedAdvisory(id, repo)
   if (!a) return res.status(404).json({ error: 'not_found' })
+  hit('view', id)
   res.json(a)
 }))
 
@@ -154,7 +159,7 @@ app.get('/api/advisories/:id/translate', wrap(async (req, res) => {
   if (!ADV_RE.test(req.params.id) || req.params.id.length > 24) return res.status(400).json({ error: 'invalid_id' })
   const id = normAdvId(req.params.id)
   const repo = typeof req.query.repo === 'string' ? req.query.repo : undefined
-  const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id, repo))
+  const a = await cachedAdvisory(id, repo)
   if (!a) return res.status(404).json({ error: 'not_found' })
   const tr = await cached(id, 'adv_ja', 365 * DAY, () => translateAdvisory(a.summary.slice(0, 400), a.details.slice(0, 6000)))
   if (!tr) return res.status(502).json({ error: 'upstream_error' })
@@ -288,7 +293,7 @@ app.get(/^\/og\/(ja|en)(\/.+)\.png$/, wrap(async (req, res) => {
     if (c) { const j = ja ? await storedJa(c.id).catch(() => null) : null; input = { title: c.id, desc: (ja && j?.text) || c.description, severity: c.severity, score: c.score }; key = `${req.params[0]}/${c.id}:${c.modified}` }
   } else if (idm && ADV_RE.test(idm[1])) {
     const id = normAdvId(idm[1])
-    const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id)).catch(() => null)
+    const a = await cachedAdvisory(id).catch(() => null)
     if (a) input = { title: a.id, desc: a.summary || a.details, severity: a.severity }
   } else {
     const i = pageInfo(rest, ja)
@@ -299,6 +304,7 @@ app.get(/^\/og\/(ja|en)(\/.+)\.png$/, wrap(async (req, res) => {
 }))
 
 extraRoutes(app, { wrap, getCve })
+storeRoutes(app, wrap)
 app.use(express.static(dist, { index: false }))
 app.get(/^\/(?!api\/).*/, async (req, res) => {
   // Short GHSA URL: /ja/GHSA2464fhr4w9xw?vercel/next.js -> /ja/GHSA-2464-fhr4-w9xw?repo=vercel/next.js
@@ -343,7 +349,7 @@ app.get(/^\/(?!api\/).*/, async (req, res) => {
     const id = normAdvId(am[1])
     const isJa = /^\/ja(\/|$)/.test(req.path)
     try {
-      const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id))
+      const a = await cachedAdvisory(id)
       if (a) html = html.replace(/<title>[\s\S]*?<\/title>[\s\S]*?<!--\/meta-->/, metaFor({ id: a.id, severity: a.severity, score: null, description: a.summary || a.details }, isJa, null) + '\n <!--/meta-->')
     } catch {}
   }

@@ -5,7 +5,8 @@ import { useLang } from '@/lib/i18n'
 import { Fail, Shell, useLoad } from '@/Explore'
 
 type Row = { severity?: string; month?: string; cwe?: string; vendor?: string; count: number }
-interface Stats { total: number; kev: number; avgScore: number | null; severity: Row[]; monthly: Row[]; kevMonthly: Row[]; topCwes: Row[]; topVendors: Row[] }
+interface Stats { total: number; kev: number; avgScore: number | null; severity: Row[]; monthly: Row[]; kevMonthly: Row[]; topCwes: Row[]; topVendors: Row[]; history?: { day: string; total: number }[] }
+interface Trend { views: { key: string; count: number }[]; searches: { key: string; count: number }[]; packages: { key: string; count: number }[] }
 
 function Bars({ rows, label, href }: { rows: { key: string; count: number; to?: string }[]; label: string; href?: boolean }) {
   const max = Math.max(1, ...rows.map((r) => r.count))
@@ -25,6 +26,7 @@ function Bars({ rows, label, href }: { rows: { key: string; count: number; to?: 
 export default function StatsPage({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme, v: unknown, el: HTMLElement) => void }) {
   const { t } = useLang()
   const { data, err, loading } = useLoad<Stats>((s) => fetch('/api/stats', { signal: s }).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json() }), [])
+  const trend = useLoad<Trend>((s) => fetch('/api/trending', { signal: s }).then((r) => r.json()), []).data
   return (
     <Shell title={t('statsTitle')} crumb={t('statsLead')} theme={theme} onThemeChange={onThemeChange}>
       {err ? <Fail err={err} /> : loading || !data ? <Skeleton label={t('searching')} lines={6} /> : (
@@ -45,6 +47,14 @@ export default function StatsPage({ theme, onThemeChange }: { theme: Theme; onTh
               <Bars label={t('statsMonthly')} rows={data.monthly.slice(-12).map((r) => ({ key: r.month!, count: r.count }))} /></section>
             <section><h2 className="sh">{t('statsKevMonthly')}</h2>
               <Bars label={t('statsKevMonthly')} rows={data.kevMonthly.slice(-12).map((r) => ({ key: r.month!, count: r.count }))} /></section>
+            {data.history && data.history.length > 1 && <section><h2 className="sh">{t('statsTrend')}</h2>
+              <Bars label={t('statsTrend')} rows={data.history.slice(-14).map((r) => ({ key: r.day.slice(5), count: r.total }))} /></section>}
+            {trend?.views.length ? <section><h2 className="sh">{t('statsViews')}</h2>
+              <Bars href label={t('statsViews')} rows={trend.views.map((r) => ({ key: r.key.toUpperCase(), count: r.count, to: `/${r.key.toUpperCase()}` }))} /></section> : null}
+            {trend?.searches.length ? <section><h2 className="sh">{t('statsSearches')}</h2>
+              <Bars href label={t('statsSearches')} rows={trend.searches.map((r) => ({ key: r.key, count: r.count, to: `/?q=${encodeURIComponent(r.key)}` }))} /></section> : null}
+            {trend?.packages.length ? <section><h2 className="sh">{t('statsPkgs')}</h2>
+              <Bars label={t('statsPkgs')} rows={trend.packages.map((r) => ({ key: r.key, count: r.count }))} /></section> : null}
           </div>
         </>
       )}

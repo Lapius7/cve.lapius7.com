@@ -1,3 +1,4 @@
+import { hit, saveSnapshot, latestSnapshot, history } from './store.ts'
 import express from 'express'
 import { createHash } from 'node:crypto'
 import { pool, rowToCve } from './db.ts'
@@ -156,7 +157,9 @@ export const OPENAPI = {
     '/api/vendors/{vendor}': { get: { summary: 'Products of a vendor' } },
     '/api/vendors/{vendor}/{product}': { get: { summary: 'CVEs of a product', parameters: ['page', 'sort'] } },
     '/api/cwe/{id}/cves': { get: { summary: 'CVEs of a CWE', parameters: ['page'] } },
-    '/api/stats': { get: { summary: 'Dashboard statistics' } },
+    '/api/stats': { get: { summary: 'Dashboard statistics (with 90-day daily history)' } },
+    '/api/advisories': { get: { summary: 'Search stored advisories (GHSA/OSV)', parameters: ['q', 'package', 'page'] } },
+    '/api/trending': { get: { summary: 'Most viewed CVEs, searches and packages (aggregate counts)' } },
     '/badge/{id}.svg': { get: { summary: 'Severity badge (CVE or advisory)' } },
     '/badge/pkg/{ecosystem}/{name}.svg': { get: { summary: 'Vulnerability count badge for a package' } },
     '/embed/{id}': { get: { summary: 'Embeddable card (iframe)', parameters: ['theme=dark|light'] } },
@@ -176,6 +179,10 @@ export function extraRoutes(app: express.Express, deps: { wrap: (fn: (req: expre
   // ---- stats ----
   let statsCache: { t: number; v: unknown } | null = null
   app.get('/api/stats', wrap(async (_req, res) => {
+    if (!statsCache) {
+      const snap = await latestSnapshot(HOUR).catch(() => null)
+      if (snap) statsCache = { t: Date.now(), v: snap }
+    }
     if (!statsCache || Date.now() - statsCache.t > HOUR) {
       const q = async (sql: string) => (await pool.query<any[]>(sql))[0]
       const [[tot], sev, months, kev, cwes, vendors] = await Promise.all([
@@ -197,8 +204,9 @@ export function extraRoutes(app: express.Express, deps: { wrap: (fn: (req: expre
           topVendors: vendors.map((r: any) => ({ vendor: r.vendor, count: Number(r.n) })),
         },
       }
+      void saveSnapshot(statsCache.v)
     }
-    res.set('cache-control', 'public, max-age=600').json(statsCache.v)
+    res.set('cache-control', 'public, max-age=600').json({ ...(statsCache.v as object), history: await history().catch(() => []) })
   }))
 
   // ---- products / vendors ----
@@ -274,6 +282,7 @@ export function extraRoutes(app: express.Express, deps: { wrap: (fn: (req: expre
     const version = String(req.query.version ?? '').trim().slice(0, 64) || undefined
     if (!ecosystem) return res.status(400).json({ error: 'bad_ecosystem', ecosystems: Object.keys(ECO) })
     if (!name) return res.status(400).json({ error: 'bad_name' })
+    hit('pkg', `${ecosystem}/${name}`)
     const items = await pkgVulns(ecosystem, name, version)
     if (!items) return res.status(502).json({ error: 'upstream_error' })
     res.set('cache-control', 'public, max-age=900').json({ ecosystem, name, version: version ?? null, total: items.length, items })
@@ -288,6 +297,7 @@ export function extraRoutes(app: express.Express, deps: { wrap: (fn: (req: expre
     if (!pkgs.length) return res.status(400).json({ error: 'no_packages' })
     const uniq = [...new Map(pkgs.map((p) => [`${p.ecosystem}|${p.name}|${p.version}`, p])).values()]
 
+    hit('scan', 'scans'); hit('scan', 'packages', uniq.length)
     const hitIds: string[][] = []
     for (let i = 0; i < uniq.length; i += 500) {
       const chunk = uniq.slice(i, i + 500)
@@ -321,6 +331,7 @@ export function extraRoutes(app: express.Express, deps: { wrap: (fn: (req: expre
     let name = (req.params.name as unknown as string[]).join('/')
     name = name.replace(/\.svg$/, '').slice(0, 214)
     if (!ecosystem || !name) return svg(res, badge('vulnerabilities', 'unknown', COLORS.UNKNOWN))
+    hit('pkg', `${ecosystem}/${name}`)
     const items = await pkgVulns(ecosystem, name, String(req.query.version ?? '') || undefined)
     if (!items) return svg(res, badge('vulnerabilities', 'unknown', COLORS.UNKNOWN))
     const open = items.filter((b) => !b.withdrawn)

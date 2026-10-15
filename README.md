@@ -100,7 +100,9 @@ Put a reverse proxy (nginx, Caddy) in front and set `SITE_URL`.
 | `GET /api/products?q=` | Product suggestions |
 | `GET /api/vendors/:vendor[/:product]` | Vendor and product CVEs |
 | `GET /api/cwe/:n/cves?page=` | CVEs by CWE |
-| `GET /api/stats` | Totals, severity, monthly counts, top CWEs and vendors |
+| `GET /api/stats` | Totals, severity, monthly counts, top CWEs and vendors, 90-day daily history |
+| `GET /api/advisories` | Search stored GHSA/OSV advisories (`q`, `package`, `page`) |
+| `GET /api/trending` | Most viewed items, searches and packages (aggregate counts only, no IPs) |
 | `GET /badge/:id.svg`, `/badge/pkg/:ecosystem/*name.svg` | SVG badges |
 | `GET /embed/:id?theme=dark` | Embeddable card |
 | `GET /api/openapi.json` | OpenAPI spec |
