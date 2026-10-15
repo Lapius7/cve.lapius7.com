@@ -1,8 +1,8 @@
-# Vulnerability.DB (cve.lapius7.com)
+# Vulnerability.DB (vulns.lapius7.com)
 
-[English](README.md) | **日本語** · 公開サイト: <https://cve.lapius7.com>
+[English](README.md) | **日本語** · 公開サイト: <https://vulns.lapius7.com>
 
-英語と日本語に対応した、高速な CVE 検索サービスです。CVE ID やキーワードで検索でき、`/{lang}/vulns/{id}` の詳細ページでは、複数の公開情報源をまとめて確認できます。
+英語と日本語に対応した、高速な CVE 検索サービスです。CVE ID やキーワードで検索でき、`/{lang}/{id}` の詳細ページでは、複数の公開情報源をまとめて確認できます。
 
 ## 機能
 
@@ -13,8 +13,12 @@
 - ライト/ダークテーマ(再読み込みしても保持)
 - ページごとの OGP タグをサーバーで生成(`/ja/` のページは、日本語の説明があればそれを使う)
 - 並べ替えと列の表示切替ができる一覧テーブル。影響を受けるパッケージ(NVD の CPE データから取得したベンダー/製品)も表示
-- 短縮 URL: `/{lang}/2026102322` は `/{lang}/vulns/CVE-2026-102322` にリダイレクト。各詳細ページにコピー欄あり
+- 短縮 URL: `/{lang}/2026102322` は `/{lang}/CVE-2026-102322` にリダイレクト。各詳細ページにコピー欄あり
 - すべての CVE を MySQL にキャッシュ(全件同期のあと差分同期)。初回の同期が終わるまでは NVD を直接呼ぶ
+- パッケージ検索(`/{lang}/pkg/npm/lodash?version=`、11 エコシステム)、ベンダー・製品ページ、CWE ページ、関連 CVE
+- 依存関係の診断(`/{lang}/scan`): ロックファイルや SBOM(package-lock.json、yarn.lock、pnpm-lock.yaml、requirements.txt、Cargo.lock、go.mod、Gemfile.lock、composer.lock、CycloneDX、SPDX、purl)をドロップ。解析はブラウザ内で行い、送信するのは名前とバージョンだけ
+- 検索欄は CVE / GHSA の ID、`CWE-79`、`lodash@4.17.15`、`pypi:django==3.2`、Maven の `group:artifact`、purl、CPE 2.3 に対応
+- 統計(`/{lang}/stats`)、ドキュメント(`/{lang}/docs`)、CVE ごとの JSON / Markdown(`/{lang}/{id}.json`、`.md`)、SVG バッジ、埋め込みカード
 
 ## データソース
 
@@ -90,6 +94,17 @@ npm start                   # dist/ と /api を 127.0.0.1:3100 で配信
 | `GET /api/cves?q=&severity=&year=&kev=1&sort=&page=` | 検索。`sort` は `new`、`score`、`epss`、`modified` |
 | `GET /api/cves/:id` | CVE 1 件 |
 | `GET /api/cves/:id/extra` | EPSS、KEV、CVE.org、OSV、GitHub Advisories、JVN |
+| `GET /api/cves/:id/related` | 同じ CWE・製品の CVE |
+| `GET /api/pkg/:ecosystem/*name?version=` | パッケージの脆弱性(毎分 30 回まで) |
+| `POST /api/scan` | 最大 3,000 個を診断 `{packages:[{ecosystem,name,version}]}` (毎分 10 回まで) |
+| `GET /api/products?q=` | 製品の候補 |
+| `GET /api/vendors/:vendor[/:product]` | ベンダー・製品の CVE |
+| `GET /api/cwe/:n/cves?page=` | CWE ごとの CVE |
+| `GET /api/stats` | 総数、深刻度、月別件数、上位の CWE・ベンダー |
+| `GET /badge/:id.svg`, `/badge/pkg/:ecosystem/*name.svg` | SVG バッジ |
+| `GET /embed/:id?theme=dark` | 埋め込みカード |
+| `GET /api/openapi.json` | OpenAPI 仕様 |
+| `GET /api/advisories/:id` | GHSA、PYSEC、RUSTSEC、GO など OSV の ID によるアドバイザリ（ページは `/{lang}/GHSA-xxxx-xxxx-xxxx`） |
 | `GET /api/cwe/:n` | CWE の名前 |
 | `GET /api/feed/kev?page=` | 悪用が確認された脆弱性 |
 | `GET /api/feed/epss?page=` | EPSS スコアが高い順 |

@@ -5,6 +5,7 @@ import '@/components/arc/foundation.css'
 import './index.css'
 import './app.css'
 import App from './App'
+import { ThemeTransitionProvider } from '@/components/transitions/theme-transition'
 import { LangProvider } from '@/lib/i18n'
 import { langOf, prefLang, withLang } from '@/lib/router'
 
@@ -12,6 +13,6 @@ if (!langOf()) history.replaceState(null, '', withLang(location.pathname, prefLa
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LangProvider><App /></LangProvider>
+    <ThemeTransitionProvider transition="circle-blur" defaultTheme={(localStorage.getItem("theme") as "light" | "dark" | null) ?? "system"}><LangProvider><App /></LangProvider></ThemeTransitionProvider>
   </StrictMode>,
 )

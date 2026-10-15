@@ -4,13 +4,15 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { getState, migrate, pool, rowToCve, upsertCves } from './db.ts'
 import { normalize, nvdRaw, type Json } from './nvd.ts'
-import { cached, cveOrg, cweName, epssSeries, ghsa, jvn, osv, storedJa, translateJa } from './sources.ts'
+import { ADV_RE, advisory, translateAdvisory, cached, cveOrg, cweName, epssSeries, ghsa, jvn, normAdvId, osv, storedJa, translateJa } from './sources.ts'
 import { startScheduler } from './sync.ts'
+import { extraRoutes } from './extra.ts'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const PER_PAGE = 20
 const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 const CVE_RE = /^CVE-\d{4}-\d{4,}$/i
+const ADV_PATH = /^\/(?:ja|en)\/([A-Za-z]+-[A-Za-z0-9-]{4,40})\/?$/
 const DAY = 86400_000
 
 const app = express()
@@ -138,6 +140,26 @@ app.get('/api/cves/:id/extra', wrap(async (req, res) => {
   })
 }))
 
+app.get('/api/advisories/:id', wrap(async (req, res) => {
+  if (!ADV_RE.test(req.params.id) || req.params.id.length > 24) return res.status(400).json({ error: 'invalid_id' })
+  const id = normAdvId(req.params.id)
+  const repo = typeof req.query.repo === 'string' ? req.query.repo : undefined
+  const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id, repo))
+  if (!a) return res.status(404).json({ error: 'not_found' })
+  res.json(a)
+}))
+
+app.get('/api/advisories/:id/translate', wrap(async (req, res) => {
+  if (!ADV_RE.test(req.params.id) || req.params.id.length > 24) return res.status(400).json({ error: 'invalid_id' })
+  const id = normAdvId(req.params.id)
+  const repo = typeof req.query.repo === 'string' ? req.query.repo : undefined
+  const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id, repo))
+  if (!a) return res.status(404).json({ error: 'not_found' })
+  const tr = await cached(id, 'adv_ja', 365 * DAY, () => translateAdvisory(a.summary.slice(0, 400), a.details.slice(0, 6000)))
+  if (!tr) return res.status(502).json({ error: 'upstream_error' })
+  res.json(tr)
+}))
+
 app.get('/api/cwe/:id', wrap(async (req, res) => {
   const id = req.params.id.replace(/\D/g, '')
   if (!id) return res.status(400).json({ error: 'invalid_id' })
@@ -176,44 +198,106 @@ app.get('/api/translate/:id', wrap(async (req, res) => {
 }))
 
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist')
-const SITE = process.env.SITE_URL ?? 'https://cve.lapius7.com'
+const SITE = process.env.SITE_URL ?? 'https://vulns.lapius7.com'
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 const SEV_JA: Record<string, string> = { CRITICAL: '緊急', HIGH: '重要', MEDIUM: '警告', LOW: '注意' }
 
 // jaText: Japanese description already stored (JVN or machine translation); used for /ja/ pages only.
 function metaFor(c: { id: string; severity: string | null; score: number | null; description: string }, ja: boolean, jaText?: { text?: string; title?: string } | null) {
-  const sev = c.severity ? ` (${ja ? SEV_JA[c.severity] ?? c.severity : c.severity.toLowerCase()} ${c.score?.toFixed(1)})` : ''
+  const sev = c.severity ? ` (${ja ? SEV_JA[c.severity] ?? c.severity : c.severity.toLowerCase()}${c.score != null ? ` ${c.score.toFixed(1)}` : ''})` : ''
   const title = `${c.id}${sev} | ${(ja && jaText?.title) || 'Vulnerability.DB'}`
   const desc = esc((ja && jaText?.text ? jaText.text : c.description).replace(/\s+/g, ' ').slice(0, ja && jaText?.text ? 120 : 200))
-  const t = esc(title), url = `${SITE}/${ja ? 'ja' : 'en'}/vulns/${c.id}`
+  const t = esc(title), url = `${SITE}/${ja ? 'ja' : 'en'}/${c.id}`
   return `<title>${t}</title>
     <meta name="description" content="${desc}" />
     <link rel="canonical" href="${url}" />
     <meta property="og:site_name" content="Vulnerability.DB" />
     <meta property="og:type" content="article" />
     <meta property="og:locale" content="${ja ? 'ja_JP' : 'en_US'}" />
-    <link rel="alternate" hreflang="en" href="${SITE}/en/vulns/${c.id}" />
-    <link rel="alternate" hreflang="ja" href="${SITE}/ja/vulns/${c.id}" />
+    <link rel="alternate" hreflang="en" href="${SITE}/en/${c.id}" />
+    <link rel="alternate" hreflang="ja" href="${SITE}/ja/${c.id}" />
     <meta property="og:title" content="${t}" />
     <meta property="og:description" content="${desc}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${SITE}/og.png?v=2" />
+    <meta property="og:image" content="${SITE}/og.png?v=3" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${desc}" />
-    <meta name="twitter:image" content="${SITE}/og.png?v=2" />`
+    <meta name="twitter:image" content="${SITE}/og.png?v=3" />`
 }
 
+const PAGES: Record<string, { en: [string, string]; ja: [string, string] }> = {
+  scan: { en: ['Check dependencies', 'Drop a lockfile or SBOM to list known vulnerabilities in your dependencies. Parsed in your browser.'], ja: ['依存関係の診断', 'ロックファイルや SBOM をドロップすると、依存パッケージの既知の脆弱性を一覧にします。解析はブラウザ内で行います。'] },
+  stats: { en: ['Statistics', 'Totals, severity, monthly counts, top CWEs and vendors.'], ja: ['統計', '総数、深刻度別、月ごとの件数、多い CWE とベンダー。'] },
+  docs: { en: ['Docs', 'Search formats, URL formats, the public API, badges and embeds.'], ja: ['ドキュメント', '検索の書き方、URL の形式、公開 API、バッジと埋め込み。'] },
+  pkg: { en: ['Package search', 'Find known vulnerabilities by package name and version for npm, PyPI, Go, Maven and more.'], ja: ['パッケージ検索', 'npm、PyPI、Go、Maven などのパッケージ名とバージョンから既知の脆弱性を検索します。'] },
+}
+// Title/OGP for non-CVE pages (package, vendor, CWE, scan, stats, docs).
+function pageMeta(rest: string, ja: boolean): string | null {
+  const dec = (x: string) => { try { return decodeURIComponent(x) } catch { return x } }
+  let title = '', desc = ''
+  let m: RegExpMatchArray | null
+  const L = ja ? 'ja' : 'en'
+  if ((m = rest.match(/^\/(scan|stats|docs)\/?$/))) [title, desc] = PAGES[m[1]][L]
+  else if ((m = rest.match(/^\/pkg(?:\/([^/]+)(?:\/(.+?))?)?\/?$/))) {
+    if (m[1] && m[2]) { const n = dec(m[2]); title = ja ? `${n} (${m[1]}) の脆弱性` : `${n} (${m[1]}) vulnerabilities`; desc = ja ? `${m[1]} の ${n} に関する既知の脆弱性とその修正バージョン。` : `Known vulnerabilities and fixed versions of ${n} on ${m[1]}.` }
+    else [title, desc] = PAGES.pkg[L]
+  } else if ((m = rest.match(/^\/vendor\/([^/]+)(?:\/([^/]+))?\/?$/))) {
+    const n = m[2] ? `${dec(m[1])} / ${dec(m[2])}` : dec(m[1])
+    title = ja ? `${n} の脆弱性` : `${n} vulnerabilities`; desc = ja ? `${n} に関する CVE の一覧。` : `CVEs affecting ${n}.`
+  } else if ((m = rest.match(/^\/cwe\/(\d{1,5})\/?$/i))) {
+    title = `CWE-${m[1]}`; desc = ja ? `CWE-${m[1]} に分類された CVE の一覧。` : `CVEs classified as CWE-${m[1]}.`
+  } else return null
+  const t = esc(`${title} | Vulnerability.DB`), d = esc(desc), url = esc(`${SITE}/${L}${rest.replace(/\/$/, '')}`)
+  return `<title>${t}</title>
+    <meta name="description" content="${d}" />
+    <link rel="canonical" href="${url}" />
+    <meta property="og:site_name" content="Vulnerability.DB" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="${ja ? 'ja_JP' : 'en_US'}" />
+    <meta property="og:title" content="${t}" />
+    <meta property="og:description" content="${d}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:image" content="${SITE}/og.png?v=3" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${t}" />
+    <meta name="twitter:description" content="${d}" />
+    <meta name="twitter:image" content="${SITE}/og.png?v=3" />`
+}
+
+extraRoutes(app, { wrap, getCve })
 app.use(express.static(dist, { index: false }))
 app.get(/^\/(?!api\/).*/, async (req, res) => {
-  // Short URL: /2026102322 or /ja/2026102322 -> /ja/vulns/CVE-2026-102322 (4-digit year + 4+ digit sequence).
+  // Short GHSA URL: /ja/GHSA2464fhr4w9xw?vercel/next.js -> /ja/GHSA-2464-fhr4-w9xw?repo=vercel/next.js
+  const gm = req.path.match(/^\/(?:(ja|en)\/)?GHSA([a-z0-9]{4})([a-z0-9]{4})([a-z0-9]{4})\/?$/i)
+  if (gm) {
+    const lang = gm[1] ?? ((req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en')
+    const raw = decodeURIComponent(req.url.slice(req.path.length).replace(/^\?(repo=)?/, ''))
+    const repo = /^[\w.-]{1,39}\/[\w.-]{1,100}$/.test(raw) ? `?repo=${raw}` : ''
+    return res.redirect(301, `/${lang}/GHSA-${gm.slice(2, 5).join('-').toLowerCase()}${repo}`)
+  }
+  // Legacy /ja/vulns/ID -> /ja/ID
+  const lm = req.path.match(/^\/(ja|en)\/vulns\/([^/]+)\/?$/)
+  if (lm) return res.redirect(301, `/${lm[1]}/${lm[2]}${req.url.slice(req.path.length)}`)
+  // Bare / non-normalised ID: /PYSEC-2021-123, /ja/cve-2026-1 -> /ja/PYSEC-2021-123
+  const dm = req.path.match(/^\/(?:(ja|en)\/)?([A-Za-z]+-[A-Za-z0-9-]{4,40})\/?$/)
+  if (dm && (ADV_RE.test(dm[2]) || CVE_RE.test(dm[2]))) {
+    const lang = dm[1] ?? ((req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en')
+    const raw = decodeURIComponent(req.url.slice(req.path.length).replace(/^\?(repo=)?/, ''))
+    const repo = /^[\w.-]{1,39}\/[\w.-]{1,100}$/.test(raw) ? `?repo=${raw}` : ''
+    const canon = CVE_RE.test(dm[2]) ? dm[2].toUpperCase() : normAdvId(dm[2])
+    if (!dm[1] || canon !== dm[2]) return res.redirect(301, `/${lang}/${canon}${repo}`)
+  }
+  // Short URL: /2026102322 or /ja/2026102322 -> /ja/CVE-2026-102322 (4-digit year + 4+ digit sequence).
   const sm = req.path.match(/^\/(?:(ja|en)\/)?(\d{4})(\d{4,})\/?$/)
   if (sm) {
     const lang = sm[1] ?? ((req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en')
-    return res.redirect(301, `/${lang}/vulns/CVE-${sm[2]}-${sm[3]}`)
+    return res.redirect(301, `/${lang}/CVE-${sm[2]}-${sm[3]}`)
   }
   if (!/^\/(ja|en)(\/|$)/.test(req.path)) {
     const lang = (req.headers['accept-language'] ?? '').toString().toLowerCase().startsWith('ja') ? 'ja' : 'en'
@@ -223,7 +307,18 @@ app.get(/^\/(?!api\/).*/, async (req, res) => {
   let html = await readFile(path.join(dist, 'index.html'), 'utf8').catch(() => null)
   if (!html) return res.status(404).send('Not built')
   if (/^\/ja(\/|$)/.test(req.path)) html = html.replace('<html lang="en"', '<html lang="ja"')
-  const m = req.path.match(/^\/(?:ja|en)\/vulns\/(CVE-\d{4}-\d{4,})\/?$/i)
+  const pm = pageMeta(req.path.replace(/^\/(ja|en)/, ''), /^\/ja(\/|$)/.test(req.path))
+  if (pm) html = html.replace(/<title>[\s\S]*?<\/title>[\s\S]*?<!--\/meta-->/, pm + '\n    <!--/meta-->')
+  const m = req.path.match(/^\/(?:ja|en)\/(CVE-\d{4}-\d{4,})\/?$/i)
+  const am = req.path.match(ADV_PATH)
+  if (am && ADV_RE.test(am[1]) && !CVE_RE.test(am[1])) {
+    const id = normAdvId(am[1])
+    const isJa = /^\/ja(\/|$)/.test(req.path)
+    try {
+      const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id))
+      if (a) html = html.replace(/<title>[\s\S]*?<\/title>[\s\S]*?<!--\/meta-->/, metaFor({ id: a.id, severity: a.severity, score: null, description: a.summary || a.details }, isJa, null) + '\n <!--/meta-->')
+    } catch {}
+  }
   if (m) {
     try {
       const c = await getCve(m[1].toUpperCase())

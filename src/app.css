@@ -168,3 +168,48 @@ html { -webkit-text-size-adjust: 100%; }
 .urlbar label { font-size: .75rem; color: var(--text-secondary); }
 .urlbar input { flex: 1 1 14rem; min-width: 0; font: inherit; font-size: .8125rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--foreground); background: var(--surface-muted); border: 1px solid var(--border); border-radius: 8px; padding: .4375rem .625rem; }
 .urlbar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Empty list: show the ghost-card art itself, without the default icon tile around it. */
+.empty-art section > div[aria-hidden='true'] { width: auto; height: auto; border: 0; background: none; box-shadow: none; border-radius: 0; }
+.empty-art section > div[aria-hidden='true']::before, .empty-art section > div[aria-hidden='true']::after { display: none; }
+
+.md p, .md ul, .md pre { margin: 0 0 .75rem; }
+.md ul { padding-left: 1.25rem; }
+.md pre { overflow-x: auto; padding: .75rem; border-radius: .5rem; background: var(--surface-muted); font-size: .85em; }
+.md h4:first-child { margin-top: 0; }
+
+/* Keep the browser autofill/suggestion tint off the search input */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  transition: background-color 9999s ease-out 0s;
+  box-shadow: 0 0 0 1000px transparent inset;
+}
+.prow { grid-template-columns: 13.5rem minmax(0, 1fr) auto; }
+@media (max-width: 40rem) { .prow { grid-template-columns: minmax(0, 1fr) auto; } .prow > span:nth-child(2) { grid-column: 1 / -1; order: 3; } }
+.scanbox { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; transition: border-color .15s; }
+.scanbox[data-drag=true] { border-color: var(--accent); }
+.scanbox textarea { display: block; width: 100%; min-height: 12rem; resize: vertical; border: 0; background: transparent; color: inherit; padding: .875rem 1rem; font: .8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; outline: 0; }
+.scanbar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .625rem .75rem; border-top: 1px solid var(--border-subtle); }
+.scanrow { border-bottom: 1px solid var(--border-subtle); }
+.scanrow:last-child { border-bottom: 0; }
+.scanrow summary { display: flex; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; cursor: pointer; list-style: none; }
+.scanrow summary::-webkit-details-marker { display: none; }
+.scanrow summary:hover { background: var(--surface-muted); }
+.scanrow ul { margin: 0; padding: 0 1rem .75rem 1.5rem; display: grid; gap: .375rem; list-style: none; font-size: .875rem; }
+.statgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 2rem; }
+@media (max-width: 720px) { .statgrid { grid-template-columns: minmax(0, 1fr); } }
+.sh { font-size: .9375rem; font-weight: 500; margin: 0 0 .75rem; }
+.bars { display: grid; gap: .375rem; }
+.bar { display: grid; grid-template-columns: 7rem minmax(0, 1fr) 4.5rem; gap: .75rem; align-items: center; font-size: .8125rem; }
+.bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt { height: .5rem; background: var(--surface-muted); border-radius: 999px; overflow: hidden; }
+.bt i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bn { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.doc h2 { font-size: 1.0625rem; font-weight: 500; margin: 2rem 0 .5rem; }
+.doc p, .doc li { font-size: .9375rem; color: var(--text-secondary); line-height: 1.6; }
+.doc table { width: 100%; border-collapse: collapse; font-size: .8125rem; margin: .5rem 0; }
+.doc th, .doc td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.doc th { font-weight: 500; color: var(--text-secondary); }
+.doc code { font: .8125rem ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.doc pre { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1rem; overflow-x: auto; margin: .5rem 0; }
+.doc .tw { overflow-x: auto; }

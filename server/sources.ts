@@ -2,7 +2,7 @@ import { pool } from './db.ts'
 import type { Json } from './nvd.ts'
 
 export async function j(url: string, ms = 8000, headers: Record<string, string> = {}) {
-  const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { 'user-agent': 'cve.lapius7.com', ...headers } })
+  const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { 'user-agent': 'vulns.lapius7.com', ...headers } })
   if (!r.ok) throw new Error(String(r.status))
   return (await r.json()) as Json
 }
@@ -138,4 +138,78 @@ export async function storedJa(id: string): Promise<{ text?: string; title?: str
   }
   const text = (jvnV?.overview as string | undefined) || (typeof trV === 'string' && trV ? trV : undefined)
   return text ? { text, title: (jvnV?.title as string | undefined) || undefined } : null
+}
+
+// OSV serves GHSA, PYSEC, RUSTSEC, GO-... and other advisory IDs from one endpoint.
+export const ADV_RE = /^(GHSA|PYSEC|RUSTSEC|GO|OSV|MAL|GSD|HSEC|DSA|DLA|USN|ALSA|RLSA|MGASA|UVI|BIT|CURL|LBSEC)-[A-Za-z0-9-]{4,40}$/i
+export const normAdvId = (id: string) => {
+  const [pre, ...rest] = id.split('-')
+  return pre.toUpperCase() === 'GHSA' ? `GHSA-${rest.join('-').toLowerCase()}` : id.toUpperCase()
+}
+
+// Advisories published on a repository but not yet in OSV / the global database.
+async function repoAdvisory(id: string, repo: string) {
+  const d = await j(`https://api.github.com/repos/${repo}/security-advisories/${id}`, 10000, process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {})
+  const sev = String(d.severity ?? '').toUpperCase()
+  return {
+    id: String(d.ghsa_id), summary: String(d.summary ?? ''), details: String(d.description ?? ''),
+    severity: sev === 'MODERATE' ? 'MEDIUM' : ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(sev) ? sev : null,
+    cvss: d.cvss?.vector_string ? String(d.cvss.vector_string) : null,
+    published: d.published_at ?? null, modified: d.updated_at ?? null, withdrawn: d.withdrawn_at ?? null,
+    aliases: d.cve_id ? [String(d.cve_id)] : [],
+    cwes: ((d.cwes ?? []) as Json[]).map((c) => String(c.cwe_id)).slice(0, 10),
+    packages: ((d.vulnerabilities ?? []) as Json[]).filter((v) => v.package?.name).map((v) => ({
+      ecosystem: String(v.package.ecosystem ?? ''), name: String(v.package.name),
+      ranges: [String(v.vulnerable_version_range || 'all')], fixed: v.patched_versions ? [String(v.patched_versions)] : [],
+    })).slice(0, 30),
+    references: [{ type: 'ADVISORY', url: String(d.html_url) }],
+  }
+}
+
+export const REPO_RE = /^[\w.-]{1,39}\/[\w.-]{1,100}$/
+
+export async function advisory(id: string, repo?: string) {
+  let d: Json
+  try { d = await j(`https://api.osv.dev/v1/vulns/${id}`, 10000) }
+  catch (e) { if (repo && REPO_RE.test(repo)) return repoAdvisory(id, repo); throw e }
+  const refs = ((d.references ?? []) as Json[]).filter((r) => /^https?:\/\//.test(r.url ?? '')).map((r) => ({ type: String(r.type ?? 'WEB'), url: String(r.url) }))
+  const sev = String(d.database_specific?.severity ?? '').toUpperCase()
+  const cvss = ((d.severity ?? []) as Json[]).find((s) => String(s.type).startsWith('CVSS'))
+  return {
+    id: String(d.id),
+    summary: String(d.summary ?? ''),
+    details: String(d.details ?? ''),
+    severity: ['CRITICAL', 'HIGH', 'MODERATE', 'MEDIUM', 'LOW'].includes(sev) ? (sev === 'MODERATE' ? 'MEDIUM' : sev) : null,
+    cvss: cvss ? String(cvss.score) : null,
+    published: d.published ? String(d.published) : null,
+    modified: d.modified ? String(d.modified) : null,
+    withdrawn: d.withdrawn ? String(d.withdrawn) : null,
+    aliases: ((d.aliases ?? []) as string[]).slice(0, 20),
+    cwes: ((d.database_specific?.cwe_ids ?? []) as string[]).slice(0, 10),
+    packages: ((d.affected ?? []) as Json[]).map((a) => ({
+      ecosystem: String(a.package?.ecosystem ?? ''), name: String(a.package?.name ?? ''),
+      ranges: ((a.ranges ?? []) as Json[]).map((r) => {
+        const ev = (r.events ?? []) as Json[]
+        const from = ev.find((e) => e.introduced !== undefined)?.introduced
+        const fixed = ev.find((e) => e.fixed)?.fixed
+        return `${from && from !== '0' ? `>= ${from}` : ''}${fixed ? `${from && from !== '0' ? ', ' : ''}< ${fixed}` : ''}` || 'all'
+      }).slice(0, 4),
+      fixed: [...new Set(((a.ranges ?? []) as Json[]).flatMap((r) => ((r.events ?? []) as Json[]).map((e) => e.fixed).filter(Boolean)))].slice(0, 6) as string[],
+    })).filter((p) => p.name).slice(0, 30),
+    references: refs.slice(0, 30),
+  }
+}
+
+/** Machine-translate advisory text line by line so markdown structure (headings, lists, code fences) survives. */
+export async function translateAdvisory(summary: string, details: string) {
+  const lines = details.replace(/<!--[\s\S]*?-->/g, '').replace(/\r\n?/g, '\n').split('\n')
+  let fence = false, budget = 1800, n = 0
+  const out = await Promise.all(lines.map(async (l) => {
+    if (/^\s*```/.test(l)) { fence = !fence; return l }
+    if (fence || !l.trim() || n >= 30 || budget <= 0) return l
+    const m = l.match(/^(\s*(?:#{1,6}|[-*+])\s+)?(.*)$/)!
+    n++; budget -= m[2].length
+    return `${m[1] ?? ''}${await translateJa(m[2])}`
+  }))
+  return { summary: summary ? await translateJa(summary) : '', details: out.join('\n') }
 }

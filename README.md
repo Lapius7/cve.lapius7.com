@@ -1,8 +1,8 @@
-# Vulnerability.DB (cve.lapius7.com)
+# Vulnerability.DB (vulns.lapius7.com)
 
-**English** | [日本語](README.ja.md) · Live: <https://cve.lapius7.com>
+**English** | [日本語](README.ja.md) · Live: <https://vulns.lapius7.com>
 
-A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or keyword, and open any vulnerability at `/{lang}/vulns/{id}` for a detailed page that aggregates several public sources.
+A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or keyword, and open any vulnerability at `/{lang}/{id}` for a detailed page that aggregates several public sources.
 
 ## Features
 
@@ -13,8 +13,12 @@ A fast, bilingual (English / 日本語) CVE search service. Search by CVE ID or 
 - Light / dark theme that survives reload
 - Per-page OGP tags rendered on the server (Japanese text on `/ja/` pages when available)
 - Sortable list table with a column menu, showing affected packages (vendor/product from NVD CPE data)
-- Short URLs: `/{lang}/2026102322` redirects to `/{lang}/vulns/CVE-2026-102322`; each detail page has a copy field for it
+- Short URLs: `/{lang}/2026102322` redirects to `/{lang}/CVE-2026-102322`; each detail page has a copy field for it
 - All CVEs cached in MySQL (full sync, then incremental sync), with a live NVD fallback until the first sync finishes
+- Package search (`/{lang}/pkg/npm/lodash?version=`) for 11 ecosystems, vendor / product pages, CWE pages and related CVEs
+- Dependency check (`/{lang}/scan`): drop a lockfile or SBOM (package-lock.json, yarn.lock, pnpm-lock.yaml, requirements.txt, Cargo.lock, go.mod, Gemfile.lock, composer.lock, CycloneDX, SPDX, purl). Parsed in the browser; only names and versions are sent
+- Search box accepts CVE / GHSA IDs, `CWE-79`, `lodash@4.17.15`, `pypi:django==3.2`, Maven `group:artifact`, purl and CPE 2.3
+- Statistics (`/{lang}/stats`), docs (`/{lang}/docs`), JSON / Markdown per CVE (`/{lang}/{id}.json`, `.md`), SVG badges and an embeddable card
 
 ## Data sources
 
@@ -90,6 +94,17 @@ Put a reverse proxy (nginx, Caddy) in front and set `SITE_URL`.
 | `GET /api/cves?q=&severity=&year=&kev=1&sort=&page=` | Search. `sort` is `new`, `score`, `epss` or `modified` |
 | `GET /api/cves/:id` | One CVE |
 | `GET /api/cves/:id/extra` | EPSS, KEV, CVE.org, OSV, GitHub Advisories, JVN |
+| `GET /api/cves/:id/related` | CVEs with the same CWE or product |
+| `GET /api/pkg/:ecosystem/*name?version=` | Vulnerabilities of a package (30 req/min) |
+| `POST /api/scan` | Check up to 3,000 packages `{packages:[{ecosystem,name,version}]}` (10 req/min) |
+| `GET /api/products?q=` | Product suggestions |
+| `GET /api/vendors/:vendor[/:product]` | Vendor and product CVEs |
+| `GET /api/cwe/:n/cves?page=` | CVEs by CWE |
+| `GET /api/stats` | Totals, severity, monthly counts, top CWEs and vendors |
+| `GET /badge/:id.svg`, `/badge/pkg/:ecosystem/*name.svg` | SVG badges |
+| `GET /embed/:id?theme=dark` | Embeddable card |
+| `GET /api/openapi.json` | OpenAPI spec |
+| `GET /api/advisories/:id` | Advisory by GHSA, PYSEC, RUSTSEC, GO and other OSV IDs (page: `/{lang}/GHSA-xxxx-xxxx-xxxx`) |
 | `GET /api/cwe/:n` | CWE name |
 | `GET /api/feed/kev?page=` | Known exploited vulnerabilities |
 | `GET /api/feed/epss?page=` | Highest EPSS scores |

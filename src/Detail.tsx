@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { Skeleton } from '@/components/arc/skeleton/skeleton'
 import Sparkline from '@/components/arc/sparkline/sparkline'
 import { ThemeSwitch, type Theme } from '@/components/arc/theme-switch/theme-switch'
-import { fmtDate, getCve, getExtra, getTranslation, shortId, tone, type Cve, type Extra } from '@/lib/api'
+import { fmtDate, getCve, getExtra, getRelated, getTranslation, shortId, tone, type Cve, type Extra } from '@/lib/api'
 import { Link, withLang } from '@/lib/router'
 import { useLang } from '@/lib/i18n'
 import { LangSwitch } from '@/App'
@@ -17,7 +17,7 @@ const Ext = ({ href, children }: { href: string; children: React.ReactNode }) =>
   <a href={href} target="_blank" rel="noopener noreferrer">{children} <ExternalLink size={12} style={{ display: 'inline' }} /></a>
 )
 
-export default function Detail({ id, theme, onThemeChange }: { id: string; theme: Theme; onThemeChange: (t: Theme) => void }) {
+export default function Detail({ id, theme, onThemeChange }: { id: string; theme: Theme; onThemeChange: (t: Theme, v: unknown, el: HTMLElement) => void }) {
   const { t, lang } = useLang()
   const [cve, setCve] = useState<Cve | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -29,12 +29,14 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
   langRef.current = lang
   const loadedLang = useRef(lang)
   const [showEn, setShowEn] = useState(false)
+  const [rel, setRel] = useState<{ sameCwe: Cve[]; sameProduct: Cve[] } | null>(null)
   const [cwe, setCwe] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const ac = new AbortController()
     setCve(null); setErr(null); setX(null); setXLoaded(false); setTr(null); setTrFailed(false)
     loadedLang.current = langRef.current
+    getRelated(id, ac.signal).then(setRel).catch(() => {})
     getExtra(id, ac.signal).then(setX).catch(() => {}).finally(() => setXLoaded(true))
     getCve(id, ac.signal).then(setCve).catch((e) => e.name !== 'AbortError' && setErr(e.message))
     return () => ac.abort()
@@ -219,6 +221,17 @@ export default function Detail({ id, theme, onThemeChange }: { id: string; theme
             <p><code>{cve.id}</code></p>
             {x?.osv && x.osv.aliases.length > 0 && <p className="tags">{x.osv.aliases.join(', ')}</p>}
             {x?.cveorg && x.cveorg.credits.length > 0 && <><h3 style={{ marginTop: '1rem' }}>{t('credits')}</h3><p>{x.cveorg.credits.join(', ')}</p></>}
+          </section>
+          {rel && (rel.sameProduct.length > 0 || rel.sameCwe.length > 0) && <section className="card">
+            <h3>{t('related')}</h3>
+            {([['relProduct', rel.sameProduct], ['relCwe', rel.sameCwe]] as const).filter(([, l]) => l.length > 0).map(([k, l]) => <div key={k}>
+              <p className="tags" style={{ margin: '.5rem 0 .25rem' }}>{t(k)}</p>
+              <ul>{l.slice(0, 5).map((c) => <li key={c.id}><Link href={`/${c.id}`}>{c.id}</Link>{c.severity && <> <Badge tone={tone(c.severity)} size="sm">{t(c.severity.toLowerCase() as 'critical')}</Badge></>}</li>)}</ul>
+            </div>)}
+          </section>}
+          <section className="card">
+            <h3>{t('formats')}</h3>
+            <p className="tags"><a href={`/${lang}/${cve.id}.json`}>JSON</a> · <a href={`/${lang}/${cve.id}.md`}>Markdown</a> · <a href={`/badge/${cve.id}.svg`}>{t('badge')}</a> · <a href={`/embed/${cve.id}`}>{t('embed')}</a></p>
           </section>
         </aside>
       </div>

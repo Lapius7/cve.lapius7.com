@@ -52,6 +52,31 @@ export async function migrate() {
     await pool.query('ALTER TABLE cves ADD COLUMN products JSON NULL')
     await pool.query("DELETE FROM sync_state WHERE k IN ('full_index','full_done','full_started')")
   }
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS cve_product (
+    vendor VARCHAR(128) NOT NULL, product VARCHAR(160) NOT NULL, cve_id VARCHAR(24) NOT NULL,
+    PRIMARY KEY (vendor, product, cve_id), INDEX i_cve (cve_id), INDEX i_product (product)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`)
+  await pool.query(`CREATE TABLE IF NOT EXISTS cve_cwe (
+    cwe VARCHAR(24) NOT NULL, cve_id VARCHAR(24) NOT NULL,
+    PRIMARY KEY (cwe, cve_id), INDEX i_cve (cve_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`)
+  // Backfill from the JSON columns once, in the background so startup is not blocked.
+  if ((await getState('rel_backfill')) !== '1') {
+    void (async () => {
+      try {
+        await pool.query(`INSERT IGNORE INTO cve_product (vendor, product, cve_id)
+          SELECT jt.vendor, jt.product, c.id FROM cves c,
+          JSON_TABLE(c.products, '$[*]' COLUMNS (vendor VARCHAR(128) PATH '$.vendor', product VARCHAR(160) PATH '$.product')) jt
+          WHERE c.products IS NOT NULL AND jt.vendor IS NOT NULL AND jt.product IS NOT NULL`)
+        await pool.query(`INSERT IGNORE INTO cve_cwe (cwe, cve_id)
+          SELECT jt.cwe, c.id FROM cves c,
+          JSON_TABLE(c.cwes, '$[*]' COLUMNS (cwe VARCHAR(24) PATH '$')) jt WHERE jt.cwe IS NOT NULL`)
+        await setState('rel_backfill', '1')
+        console.log('[db] relation tables backfilled')
+      } catch (e) { console.error('[db] backfill failed', e) }
+    })()
+  }
 }
 
 export async function getState(k: string) {
@@ -76,6 +101,13 @@ export async function upsertCves(rows: CveRow[]) {
        cwes=VALUES(cwes), refs=VALUES(refs), kev=VALUES(kev), products=VALUES(products)`,
     [vals],
   )
+  const ids = rows.map((c) => c.id)
+  await pool.query('DELETE FROM cve_product WHERE cve_id IN (?)', [ids])
+  await pool.query('DELETE FROM cve_cwe WHERE cve_id IN (?)', [ids])
+  const pv = rows.flatMap((c) => c.products.map((x) => [x.vendor.slice(0, 128), x.product.slice(0, 160), c.id]))
+  const cv = rows.flatMap((c) => c.cwes.map((w) => [w.slice(0, 24), c.id]))
+  if (pv.length) await pool.query('INSERT IGNORE INTO cve_product (vendor, product, cve_id) VALUES ?', [pv])
+  if (cv.length) await pool.query('INSERT IGNORE INTO cve_cwe (cwe, cve_id) VALUES ?', [cv])
 }
 
 export function rowToCve(r: any) {

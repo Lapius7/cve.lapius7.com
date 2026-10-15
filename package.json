@@ -1,5 +1,5 @@
 {
-  "name": "cve.lapius7.com",
+  "name": "vulns.lapius7.com",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -19,6 +19,7 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@radix-ui/react-dialog": "^1.2.0",
+    "@radix-ui/react-select": "^2.4.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",

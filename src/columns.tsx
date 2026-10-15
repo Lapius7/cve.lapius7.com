@@ -5,7 +5,7 @@ import { Link } from '@/lib/router'
 
 type T = (k: any, v?: Record<string, string>) => string
 
-const idCell = (id: string) => <Link className="dt-id" href={`/vulns/${id}`} onClick={(e) => e.stopPropagation()}>{id}</Link>
+const idCell = (id: string) => <Link className="dt-id" href={`/${id}`} onClick={(e) => e.stopPropagation()}>{id}</Link>
 const pct = (v: number | null | undefined) => (v == null ? '–' : `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%`)
 
 function packages(c: Cve) {
