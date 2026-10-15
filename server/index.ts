@@ -7,6 +7,7 @@ import { normalize, nvdRaw, type Json } from './nvd.ts'
 import { ADV_RE, advisory, translateAdvisory, cached, cveOrg, cweName, epssSeries, ghsa, jvn, normAdvId, osv, storedJa, translateJa } from './sources.ts'
 import { startScheduler } from './sync.ts'
 import { extraRoutes } from './extra.ts'
+import { renderOg } from './og.ts'
 
 const PORT = Number(process.env.PORT ?? 3100)
 const PER_PAGE = 20
@@ -220,13 +221,13 @@ function metaFor(c: { id: string; severity: string | null; score: number | null;
     <meta property="og:title" content="${t}" />
     <meta property="og:description" content="${desc}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${SITE}/og.png?v=3" />
+    <meta property="og:image" content="${SITE}/og/${ja ? 'ja' : 'en'}/${c.id}.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${desc}" />
-    <meta name="twitter:image" content="${SITE}/og.png?v=3" />`
+    <meta name="twitter:image" content="${SITE}/og/${ja ? 'ja' : 'en'}/${c.id}.png" />`
 }
 
 const PAGES: Record<string, { en: [string, string]; ja: [string, string] }> = {
@@ -236,7 +237,7 @@ const PAGES: Record<string, { en: [string, string]; ja: [string, string] }> = {
   pkg: { en: ['Package search', 'Find known vulnerabilities by package name and version for npm, PyPI, Go, Maven and more.'], ja: ['パッケージ検索', 'npm、PyPI、Go、Maven などのパッケージ名とバージョンから既知の脆弱性を検索します。'] },
 }
 // Title/OGP for non-CVE pages (package, vendor, CWE, scan, stats, docs).
-function pageMeta(rest: string, ja: boolean): string | null {
+function pageInfo(rest: string, ja: boolean): { title: string; desc: string } | null {
   const dec = (x: string) => { try { return decodeURIComponent(x) } catch { return x } }
   let title = '', desc = ''
   let m: RegExpMatchArray | null
@@ -251,6 +252,13 @@ function pageMeta(rest: string, ja: boolean): string | null {
   } else if ((m = rest.match(/^\/cwe\/(\d{1,5})\/?$/i))) {
     title = `CWE-${m[1]}`; desc = ja ? `CWE-${m[1]} に分類された CVE の一覧。` : `CVEs classified as CWE-${m[1]}.`
   } else return null
+  return { title, desc }
+}
+function pageMeta(rest: string, ja: boolean): string | null {
+  const info = pageInfo(rest, ja)
+  if (!info) return null
+  const { title, desc } = info, L = ja ? 'ja' : 'en'
+  const img = `${SITE}/og/${L}${rest.replace(/\/$/, '')}.png`
   const t = esc(`${title} | Vulnerability.DB`), d = esc(desc), url = esc(`${SITE}/${L}${rest.replace(/\/$/, '')}`)
   return `<title>${t}</title>
     <meta name="description" content="${d}" />
@@ -261,14 +269,34 @@ function pageMeta(rest: string, ja: boolean): string | null {
     <meta property="og:title" content="${t}" />
     <meta property="og:description" content="${d}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${SITE}/og.png?v=3" />
+    <meta property="og:image" content="${img}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${d}" />
-    <meta name="twitter:image" content="${SITE}/og.png?v=3" />`
+    <meta name="twitter:image" content="${img}" />`
 }
+
+// Per-page OGP images, drawn from the same text as the page meta. Only known page shapes are rendered.
+app.get(/^\/og\/(ja|en)(\/.+)\.png$/, wrap(async (req, res) => {
+  const ja = req.params[0] === 'ja', rest = req.params[1] as string
+  let key = `${req.params[0]}${rest}`, input: { title: string; desc?: string; severity?: string | null; score?: number | null } | null = null
+  const idm = rest.match(/^\/([A-Za-z]+-[A-Za-z0-9-]{4,40})$/)
+  if (idm && CVE_RE.test(idm[1])) {
+    const c = await getCve(idm[1].toUpperCase())
+    if (c) { const j = ja ? await storedJa(c.id).catch(() => null) : null; input = { title: c.id, desc: (ja && j?.text) || c.description, severity: c.severity, score: c.score }; key = `${req.params[0]}/${c.id}:${c.modified}` }
+  } else if (idm && ADV_RE.test(idm[1])) {
+    const id = normAdvId(idm[1])
+    const a = await cached(id, 'advisory', 6 * 3600_000, () => advisory(id)).catch(() => null)
+    if (a) input = { title: a.id, desc: a.summary || a.details, severity: a.severity }
+  } else {
+    const i = pageInfo(rest, ja)
+    if (i) input = i
+  }
+  if (!input) return res.status(404).type('text/plain').send('not found')
+  res.set('Cache-Control', 'public, max-age=86400').type('png').send(renderOg(key, input))
+}))
 
 extraRoutes(app, { wrap, getCve })
 app.use(express.static(dist, { index: false }))
