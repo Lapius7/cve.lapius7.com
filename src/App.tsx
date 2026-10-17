@@ -55,9 +55,9 @@ export default function App() {
 }
 
 export function LangSwitch() {
-  const { lang, setLang } = useLang()
+  const { lang, setLang, t } = useLang()
   return (
-    <SegmentedControl label="Language" value={lang} onValueChange={(v) => setLang(v as Lang)}
+    <SegmentedControl label={t('aLanguage')} value={lang} onValueChange={(v) => setLang(v as Lang)}
       options={[{ value: 'en', label: 'EN' }, { value: 'ja', label: '日本語' }]} />
   )
 }
@@ -138,7 +138,7 @@ function Home({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme
       <nav className="tags" style={{ display: 'flex', gap: '1rem', margin: '-.5rem 0 1rem', fontSize: '.875rem' }}><Link href="/pkg">{t('navPkg')}</Link><Link href="/scan">{t('navScan')}</Link><Link href="/stats">{t('navStats')}</Link><Link href="/docs">{t('navDocs')}</Link></nav>
 
       <div className="tabs" style={{ marginBottom: '1rem' }}>
-        <SegmentedControl label="View" value={tab} onValueChange={(v) => { setTab(v as Tab); setPage(1) }}
+        <SegmentedControl label={t('aView')} value={tab} onValueChange={(v) => { setTab(v as Tab); setPage(1) }}
           options={[{ value: 'search', label: t('tabSearch') }, { value: 'kev', label: t('tabKev') }, { value: 'epss', label: t('tabEpss') }]} />
       </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/arc/badge/badge'
 import { Button } from '@/components/arc/button/button'
-import { CopyButton } from '@/components/arc/copy-button/copy-button'
+import { CopyMenu } from '@/lib/CopyMenu'
 import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { Skeleton } from '@/components/arc/skeleton/skeleton'
 import { ThemeSwitch, type Theme } from '@/components/arc/theme-switch/theme-switch'
@@ -52,7 +52,7 @@ export default function AdvisoryDetail({ id, theme, onThemeChange }: { id: strin
       </main>
     )
   }
-  if (!a) return <main className="page">{top}<Skeleton label="Loading" lines={6} /></main>
+  if (!a) return <main className="page">{top}<Skeleton label={t('aLoading')} lines={6} /></main>
 
   const sev = a.severity && SEV.includes(a.severity) ? a.severity : null
   const repo = new URLSearchParams(location.search).get('repo')
@@ -72,12 +72,7 @@ export default function AdvisoryDetail({ id, theme, onThemeChange }: { id: strin
           {a.withdrawn && <Badge>{t('withdrawn')}</Badge>}
           <span className="tags">{a.id}{a.published && ` · ${t('published')} ${fmtDate(a.published)}`}{a.modified && ` · ${t('updated')} ${fmtDate(a.modified)}`}</span>
         </div>
-        <div className="actions"><CopyButton value={a.id} label={t('copyId')} /></div>
-        <div className="urlbar">
-          <label htmlFor="short-url">{t('shortUrl')}</label>
-          <input id="short-url" readOnly value={shortUrl} onFocus={(e) => e.currentTarget.select()} />
-          <CopyButton value={shortUrl} label={t('copyLink')} />
-        </div>
+        <div className="actions"><CopyMenu id={a.id} url={shortUrl} /></div>
       </header>
 
       <div className="dgrid">

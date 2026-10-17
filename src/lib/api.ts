@@ -40,6 +40,8 @@ export interface Feed<T> { total: number; page: number; perPage: number; items: 
 export const getKev = (page: number, signal?: AbortSignal) => get<Feed<KevItem>>(`/api/feed/kev?page=${page}`, signal)
 export const getEpssTop = (page: number, signal?: AbortSignal) => get<Feed<EpssItem>>(`/api/feed/epss?page=${page}`, signal)
 export const getTranslation = (id: string, signal?: AbortSignal) => get<{ text: string }>(`/api/translate/${id}`, signal)
+export interface ExtraJa { kevName: string | null; kevAction: string | null; solutions: (string | null)[]; workarounds: (string | null)[] }
+export const getExtraJa = (id: string, signal?: AbortSignal) => get<ExtraJa>(`/api/cves/${id}/extra-ja`, signal)
 export const getExtra = (id: string, signal?: AbortSignal) => get<Extra>(`/api/cves/${id}/extra`, signal)
 
 async function get<T>(url: string, signal?: AbortSignal): Promise<T> {

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { JaText } from '@/lib/jaText'
 import { Badge } from '@/components/arc/badge/badge'
 import { Button } from '@/components/arc/button/button'
 import { EmptyState } from '@/components/arc/empty-state/empty-state'
@@ -74,8 +75,6 @@ export function PkgPage({ eco, name, theme, onThemeChange }: { eco: string; name
     const path = `/pkg/${fEco}/${fName.trim().split('/').map(encodeURIComponent).join('/')}`
     navigate(withLang(path) + (fVer.trim() ? `?version=${encodeURIComponent(fVer.trim())}` : ''), false)
   }
-  const open = data?.items.filter((i) => !i.withdrawn) ?? []
-  const badgeUrl = name ? `${location.origin}/badge/pkg/${eco}/${name}.svg${version ? `?version=${version}` : ''}` : ''
 
   return (
     <Shell title={name ? t('pkgTitle', { name }) : t('navPkg')} crumb={name ? `${ecoLabel}${version ? ` @ ${version}` : ''}` : t('pkgLead', { eco: 'npm, PyPI, Go, Maven …' })} theme={theme} onThemeChange={onThemeChange}>
@@ -89,7 +88,6 @@ export function PkgPage({ eco, name, theme, onThemeChange }: { eco: string; name
         <>
           <div className="meta" style={{ display: 'flex', gap: '.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <span aria-live="polite">{t('pkgTotal', { n: data.total })}</span>
-            <img src={badgeUrl} alt={t('pkgBadge')} height={20} />
           </div>
           {data.items.length === 0 ? <EmptyState title={t('pkgNone', { v: version ? ` (${version})` : '' })} description="" /> : (
             <div className="list">
@@ -97,9 +95,11 @@ export function PkgPage({ eco, name, theme, onThemeChange }: { eco: string; name
                 <Link key={v.id} href={`/${v.id}`} className="row prow" style={{ textDecoration: 'none', opacity: v.withdrawn ? 0.55 : 1 }}>
                   <span className="id">{v.id}</span>
                   <span>
-                    <span className="desc" style={{ color: 'var(--foreground)' }}>{v.summary || v.aliases.join(', ')}</span>
-                    <span className="tags" style={{ display: 'block', marginTop: '.25rem' }}>
-                      {v.aliases.filter((a) => a.startsWith('CVE-')).join(' ')}{v.published ? ` · ${fmtDate(v.published)}` : ''}{v.fixed.length ? ` · ${t('fixedIn')} ${v.fixed.join(', ')}` : ''}
+                    <span className="desc" style={{ color: 'var(--foreground)' }}>{v.summary ? <JaText text={v.summary} /> : v.aliases.join(', ')}</span>
+                    <span className="tags ptags">
+                      {(() => { const cs = v.aliases.filter((a) => a.startsWith('CVE-')); return cs.length > 0 && <span>{cs.slice(0, 2).join(' ')}{cs.length > 2 && ` +${cs.length - 2}`}</span> })()}
+                      {v.published && <span>{fmtDate(v.published)}</span>}
+                      {v.fixed.length > 0 && <span>{t('fixedIn')} {v.fixed.slice(0, 2).join(', ')}{v.fixed.length > 2 && ` +${v.fixed.length - 2}`}</span>}
                     </span>
                   </span>
                   <span className="score">
@@ -110,7 +110,6 @@ export function PkgPage({ eco, name, theme, onThemeChange }: { eco: string; name
               ))}
             </div>
           )}
-          {open.length > 0 && <p className="tags" style={{ marginTop: '.75rem' }}>{t('pkgBadge')}: <code>![vulnerabilities]({badgeUrl})</code></p>}
         </>
       )}
     </Shell>
@@ -149,7 +148,7 @@ export function VendorPage({ vendor, product, theme, onThemeChange }: { vendor: 
       {err ? <Fail err={err} /> : product ? (
         <>
           <div className="controls">
-            <SegmentedControl label="Sort" value={sort} onValueChange={(v) => { setSort(v); setPage(1); const u = new URLSearchParams(location.search); v === 'new' ? u.delete('sort') : u.set('sort', v); history.replaceState(null, '', u.size ? `?${u}` : location.pathname) }}
+            <SegmentedControl label={t('aSort')} value={sort} onValueChange={(v) => { setSort(v); setPage(1); const u = new URLSearchParams(location.search); v === 'new' ? u.delete('sort') : u.set('sort', v); history.replaceState(null, '', u.size ? `?${u}` : location.pathname) }}
               options={[{ value: 'new', label: t('sortNew') }, { value: 'score', label: t('sortScore') }, { value: 'epss', label: t('sortEpss') }]} />
             {pr.data && <div className="chips">{sevOrder.filter((s) => pr.data!.severity[s]).map((s) => <Badge key={s} tone={tone(s)} size="sm">{t(s.toLowerCase() as 'critical')} {pr.data!.severity[s]}</Badge>)}</div>}
           </div>

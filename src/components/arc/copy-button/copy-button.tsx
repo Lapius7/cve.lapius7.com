@@ -45,7 +45,7 @@ function DrawnCheck({ reduced }: { reduced: boolean }) {
 type Glyph = { id: string; char: string; order: number };
 const toGlyphs = (chars: string[], seq: number): Glyph[] => chars.map((char, order) => ({ id: `${seq}:${order}`, char, order }));
 
-/** Shared leading and trailing characters keep their identity, so "Copy" to "Copied" only replaces the changed letters. */
+/** On a text change every glyph is replaced, so all letters play the same animation. */
 function useGlyphs(text: string) {
   const [state, setState] = useState(() => ({ text, seq: 0, glyphs: toGlyphs([...text], 0) }));
   if (state.text === text) return state.glyphs;
@@ -53,8 +53,9 @@ function useGlyphs(text: string) {
   let start = 0, end = 0;
   while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
   while (end < prev.length - start && end < next.length - start && prev[prev.length - 1 - end] === next[next.length - 1 - end]) end++;
-  if (start < 2) start = 0;
-  if (end < 2) end = 0;
+  // Every letter animates together: shared characters are not kept, so a language switch looks uniform.
+  start = 0;
+  end = 0;
   const seq = state.seq + 1;
   const glyphs = [...state.glyphs.slice(0, start), ...toGlyphs(next.slice(start, next.length - end), seq), ...state.glyphs.slice(state.glyphs.length - end)];
   setState({ text, seq, glyphs });

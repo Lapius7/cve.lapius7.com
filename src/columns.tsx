@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/arc/badge/badge'
 import { fmtDate, tone, type Cve, type EpssItem, type KevItem } from '@/lib/api'
 import { Link } from '@/lib/router'
+import { JaText } from '@/lib/jaText'
 
 type T = (k: any, v?: Record<string, string>) => string
 
@@ -33,7 +34,7 @@ export const cveColumns = (t: T): ColumnDef<Cve, any>[] => [
     cell: ({ row }) => pct(row.original.epss) },
   { id: 'published', header: t('colPublished'), accessorFn: (c) => c.published, sortDescFirst: true, cell: ({ row }) => fmtDate(row.original.published) },
   { id: 'description', header: t('colDesc'), enableSorting: false, meta: { className: 'dt-desc' },
-    cell: ({ row }) => <span className="dt-clamp">{row.original.description}</span> },
+    cell: ({ row }) => <span className="dt-clamp"><JaText text={row.original.description} /></span> },
 ]
 
 export const kevColumns = (t: T): ColumnDef<KevItem, any>[] => [
@@ -46,7 +47,7 @@ export const kevColumns = (t: T): ColumnDef<KevItem, any>[] => [
   { id: 'added', accessorKey: 'added', header: t('colAdded'), sortDescFirst: true },
   { id: 'due', accessorKey: 'due', header: t('colDue'), sortDescFirst: true },
   { id: 'description', header: t('colDesc'), enableSorting: false, meta: { className: 'dt-desc' },
-    cell: ({ row }) => <span className="dt-clamp">{row.original.name}. {row.original.description}</span> },
+    cell: ({ row }) => <span className="dt-clamp"><JaText text={`${row.original.name}. ${row.original.description}`} /></span> },
 ]
 
 export const epssColumns = (t: T): ColumnDef<EpssItem, any>[] => [

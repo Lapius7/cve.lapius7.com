@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { getState, migrate, pool, rowToCve, upsertCves } from './db.ts'
 import { normalize, nvdRaw, type Json } from './nvd.ts'
-import { ADV_RE, advisory, translateAdvisory, cached, cveOrg, cweName, epssSeries, ghsa, jvn, normAdvId, osv, storedJa, translateJa } from './sources.ts'
+import { ADV_RE, advisory, translateAdvisory, cached, cveOrg, cweName, epssSeries, ghsa, jvn, normAdvId, osv, storedJa, translateJa, translateJaKeepUrls } from './sources.ts'
 import { startScheduler } from './sync.ts'
 import { extraRoutes } from './extra.ts'
 import { renderOg } from './og.ts'
@@ -145,6 +145,23 @@ app.get('/api/cves/:id/extra', wrap(async (req, res) => {
   })
 }))
 
+// Japanese text for the English-only blocks of the detail page (CISA KEV and CVE.org solutions / workarounds).
+app.get('/api/cves/:id/extra-ja', wrap(async (req, res) => {
+  if (!CVE_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_id' })
+  const id = req.params.id.toUpperCase()
+  const [kr] = await pool.query<any[]>('SELECT name, action FROM kev WHERE cve_id = ?', [id])
+  const co: any = await cached(id, 'cveorg', DAY, () => cveOrg(id))
+  const tr = (key: string, text: string | undefined) => text?.trim()
+    ? cached(id, `trx_${key}`, 365 * DAY, () => translateJaKeepUrls(text.slice(0, 1800))).catch(() => null)
+    : Promise.resolve(null)
+  const [kevName, kevAction, solutions, workarounds] = await Promise.all([
+    tr('kn', kr[0]?.name), tr('ka', kr[0]?.action),
+    Promise.all(((co?.solutions ?? []) as string[]).slice(0, 4).map((t, i) => tr(`s${i}`, t))),
+    Promise.all(((co?.workarounds ?? []) as string[]).slice(0, 4).map((t, i) => tr(`w${i}`, t))),
+  ])
+  res.set('Cache-Control', 'public, max-age=3600').json({ kevName, kevAction, solutions, workarounds })
+}))
+
 app.get('/api/advisories/:id', wrap(async (req, res) => {
   if (!ADV_RE.test(req.params.id) || req.params.id.length > 24) return res.status(400).json({ error: 'invalid_id' })
   const id = normAdvId(req.params.id)
@@ -207,11 +224,10 @@ const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist
 const SITE = process.env.SITE_URL ?? 'https://vulns.lapius7.com'
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-const SEV_JA: Record<string, string> = { CRITICAL: '緊急', HIGH: '重要', MEDIUM: '警告', LOW: '注意' }
 
 // jaText: Japanese description already stored (JVN or machine translation); used for /ja/ pages only.
 function metaFor(c: { id: string; severity: string | null; score: number | null; description: string }, ja: boolean, jaText?: { text?: string; title?: string } | null) {
-  const sev = c.severity ? ` (${ja ? SEV_JA[c.severity] ?? c.severity : c.severity.toLowerCase()}${c.score != null ? ` ${c.score.toFixed(1)}` : ''})` : ''
+  const sev = c.severity ? ` (${c.severity.toLowerCase()}${c.score != null ? ` ${c.score.toFixed(1)}` : ''})` : ''
   const title = `${c.id}${sev} | ${(ja && jaText?.title) || 'Vulnerability.DB'}`
   const desc = esc((ja && jaText?.text ? jaText.text : c.description).replace(/\s+/g, ' ').slice(0, ja && jaText?.text ? 120 : 200))
   const t = esc(title), url = `${SITE}/${ja ? 'ja' : 'en'}/${c.id}`

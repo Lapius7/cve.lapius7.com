@@ -82,6 +82,28 @@ export async function cweName(id: string) {
   return w ? { id: `CWE-${n}`, name: w.Name as string, description: (w.Description as string)?.slice(0, 400) } : null
 }
 
+const LIBRE = process.env.LIBRETRANSLATE_URL ?? 'http://127.0.0.1:5000'
+
+/** Self-hosted LibreTranslate (no quota, no key). Throws when unavailable so callers can fall back. */
+async function libreJa(text: string) {
+  const r = await fetch(`${LIBRE}/translate`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ q: text, source: 'en', target: 'ja', format: 'text' }), signal: AbortSignal.timeout(20000),
+  })
+  if (!r.ok) throw new Error('libre')
+  const out = ((await r.json()) as any).translatedText as string | undefined
+  if (!out) throw new Error('libre')
+  return out.replace(/\.$/, '。').replace(/\s*;\s*/g, '; ')
+}
+
+async function myMemoryJa(c: string) {
+  const r = await j(`https://api.mymemory.translated.net/get?langpair=en|ja${process.env.MYMEMORY_EMAIL ? `&de=${encodeURIComponent(process.env.MYMEMORY_EMAIL)}` : ''}&q=${encodeURIComponent(c)}`)
+  const out = r.responseData?.translatedText as string | undefined
+  // MyMemory reports quota/limit errors as a 200 with a warning text; never cache that.
+  if (r.responseStatus !== 200 || !out || /MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID/i.test(out)) throw new Error('translate')
+  return out
+}
+
 export async function translateJa(text: string) {
   const chunks: string[] = []
   for (const sent of text.slice(0, 1800).split(/(?<=[.!?])\s+/)) {
@@ -89,14 +111,22 @@ export async function translateJa(text: string) {
     if (last >= 0 && chunks[last].length + sent.length < 450) chunks[last] += ' ' + sent
     else chunks.push(sent.slice(0, 480))
   }
-  const parts = await Promise.all(chunks.map(async (c) => {
-    const r = await j(`https://api.mymemory.translated.net/get?langpair=en|ja${process.env.MYMEMORY_EMAIL ? `&de=${encodeURIComponent(process.env.MYMEMORY_EMAIL)}` : ''}&q=${encodeURIComponent(c)}`)
-    const out = r.responseData?.translatedText as string | undefined
-    // MyMemory reports quota/limit errors as a 200 with a warning text; never cache that.
-    if (r.responseStatus !== 200 || !out || /MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID/i.test(out)) throw new Error('translate')
-    return out
-  }))
+  const parts = await Promise.all(chunks.map((c) => libreJa(c).catch(() => myMemoryJa(c))))
   return parts.join('')
+}
+
+/** Machine-translates English text to Japanese while keeping URLs intact (they are swapped for tokens during translation). */
+export async function translateJaKeepUrls(text: string) {
+  const urls: string[] = []
+  const masked = text.replace(/https?:\/\/[^\s<>"')]+/g, (u) => { urls.push(u); return `URL${urls.length}` })
+  let out = await translateJa(masked)
+  const missing: string[] = []
+  urls.forEach((u, i) => {
+    const re = new RegExp(`URL\\s*${i + 1}(?!\\d)`)
+    if (re.test(out)) out = out.replace(re, ` ${u} `).replace(/ {2,}/g, ' ')
+    else missing.push(u)
+  })
+  return missing.length ? `${out} ${missing.join(' ')}` : out
 }
 
 const inflight = new Map<string, Promise<unknown>>()
