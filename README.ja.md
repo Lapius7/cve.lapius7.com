@@ -96,7 +96,7 @@ npm start                   # dist/ と /api を 127.0.0.1:3100 で配信
 | `GET /api/cves/:id/extra` | EPSS、KEV、CVE.org、OSV、GitHub Advisories、JVN |
 | `GET /api/cves/:id/related` | 同じ CWE・製品の CVE |
 | `GET /api/pkg/:ecosystem/*name?version=` | パッケージの脆弱性(毎分 30 回まで) |
-| `POST /api/scan` | 最大 3,000 個を診断 `{packages:[{ecosystem,name,version}]}` (毎分 10 回まで) |
+| `POST /api/scan` | `{packages:[{ecosystem,name,version}]}` を最大 3,000 個まで診断(毎分 10 回まで) |
 | `GET /api/products?q=` | 製品の候補 |
 | `GET /api/vendors/:vendor[/:product]` | ベンダー・製品の CVE |
 | `GET /api/cwe/:n/cves?page=` | CWE ごとの CVE |
